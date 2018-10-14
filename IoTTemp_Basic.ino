@@ -21,7 +21,6 @@
 
 #define CELSIUS             // Comment out if you prefer Fahrenheit
 
-#include "data.h"           // Means I don't keep uploading my API key to GitHub
 
 /*
 You will need a file "data.h" which looks like this
@@ -34,6 +33,7 @@ You will need a file "data.h" which looks like this
 -------------------------------------
 */
 
+#include "data.h"           // Means I don't keep uploading my API key to GitHub
 const char* ssid = SSID;
 const char* password = PASSWORD;
 const char* host = HOST;
@@ -51,7 +51,7 @@ float Humidity;
 int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enought   
 int startWiFi;
 
-int poll = 10000;     			// Poll the sensor every 10 seconds (or so)
+int poll = 60000;     			// Poll the sensor every 10 seconds (or so)
 
 void setup()
 {
@@ -150,7 +150,6 @@ void loop() {
    tft.println(WiFi.localIP());
 
    Serial.printf("\n[Connecting to %s ... ", host, "\n");
-   Serial.println();
       
    if (client.connect(host, 80))     {
     Serial.println("Connected]");
