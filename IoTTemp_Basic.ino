@@ -158,7 +158,11 @@ void loop() {
            request += "/input/post?node=";
            request += nodeName;
            request += "&fulljson={\"temp\":";
+  #ifdef CELSIUS
            request += dht12.cTemp ;
+  #else
+           request += dht12.fTemp ;
+  #endif         
            request += ",\"humidity\":" ;
            request += dht12.humidity ;
            request += "}&apikey=";
