@@ -1,3 +1,6 @@
+# Contains API key
+data.h
+
 # Windows thumbnail cache files
 Thumbs.db
 ehthumbs.db
