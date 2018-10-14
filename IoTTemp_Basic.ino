@@ -22,6 +22,7 @@
 #define CELSIUS             // Comment out if you prefer Fahrenheit
 
 #include "data.h"           // Means I don't keep uploading my API key to GitHub
+
 /*
 You will need a file "data.h" which looks like this
 -----------------------
@@ -29,14 +30,15 @@ You will need a file "data.h" which looks like this
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";
 #define MYAPIKEY "<Your API write key for emoncms>";
+#define NODENAME "<Your NodeName - Kitchen for example";
 -------------------------------------
 */
+
 const char* ssid = SSID;
 const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
-
-const char* nodeName = "External";
+const char* nodeName = NODENAME;
 
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 DHT12 dht12;                                                        // Instance of dht12
