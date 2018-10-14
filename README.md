@@ -1,5 +1,5 @@
 # IotaTemp_basic
-Wemos D1 mini and DHT12 Sensor log to internets
+Wemos D1 mini and DHT12 Sensor logs to the internet.
 
 Uses a Wemos/Lolin D1 mini hooked up to the Wemos DHT v3.0.0 shield that logs temp and humidity up to an emoncms server.
 
