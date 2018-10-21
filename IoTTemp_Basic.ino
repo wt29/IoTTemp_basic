@@ -1,6 +1,21 @@
+/* 
+IOT Temp - a somewhat basic temperature and humidity logger. 
+
+Featuring the LOLON D1 ESP 8266 and associated shields.
+
+You will need a file "data.h" which looks like this
+-----------------------
+#define SSID "<Your WiFi SSID>";
+#define PASSWORD "<Your WiFI Password>";
+#define HOST "<Your emoncms host - most likely emoncms.org>";
+#define MYAPIKEY "<Your API write key for emoncms>";
+#define NODENAME "<Your NodeName - Kitchen for example";
+-------------------------------------
+*/
+#warning Setup your data.h
+
 #include <ESP8266WiFi.h>
 #include <WEMOS_DHT12.h>
-#include <SPI.h>
 
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
@@ -21,18 +36,6 @@
 
 #define CELSIUS             // Comment out if you prefer Fahrenheit
 
-
-/*
-You will need a file "data.h" which looks like this
------------------------
-#define SSID "<Your WiFi SSID>";
-#define PASSWORD "<Your WiFI Password>";
-#define HOST "<Your emoncms host - most likely emoncms.org>";
-#define MYAPIKEY "<Your API write key for emoncms>";
-#define NODENAME "<Your NodeName - Kitchen for example";
--------------------------------------
-*/
-
 #include "data.h"           // Means I don't keep uploading my API key to GitHub
 const char* ssid = SSID;
 const char* password = PASSWORD;
@@ -50,8 +53,9 @@ float Humidity;
 
 int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enought   
 int startWiFi;
+int connectMillis = millis();  // this gets reset after every successful data push
 
-int poll = 60000;     			// Poll the sensor every 10 seconds (or so)
+int poll = 60000;     			  // Poll the sensor every 10 seconds (or so)
 
 void setup()
 {
@@ -66,18 +70,18 @@ void setup()
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
-  tft.setTextColor(ST7735_BLUE);
   tft.setTextSize(2);
   tft.setCursor(0,0);
-  tft.println("Connecting");
-    
+  tft.setTextColor(ST7735_BLUE);
+  tft.println( "Connecting" );
+
   startWiFi = millis() ;     // When we started waiting
   
   while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
   {
     delay(500);
     Serial.print(".");
-	tft.print(".");    		// Show that it is working
+	  tft.print(".");    		// Show that it is trying
   }
   
 }
@@ -104,13 +108,13 @@ void loop() {
   Serial.println();
   
   tft.fillScreen(ST7735_BLACK);
-  tft.setTextColor(ST7735_BLUE);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
+  tft.setTextColor(ST7735_BLUE);
   tft.println(" IoT Temp");
   tft.println("");
   tft.setTextColor(ST7735_WHITE);
-  tft.print(" Tmp ");
+  tft.print(" Tmp " );
   tft.setTextColor(ST7735_GREEN);
   #ifdef CELSIUS
   tft.println(TempC);
@@ -138,16 +142,15 @@ void loop() {
   
   }
   else
-
   {
    tft.setTextColor(ST7735_WHITE);
-   tft.print(" SSID:");
+   tft.print(" SSID:" );
    tft.setTextColor(ST7735_GREEN);
-   tft.println(ssid);
+   tft.println( ssid );
    tft.setTextColor(ST7735_WHITE);
-   tft.print("   IP:");
+   tft.print("   IP:" );
    tft.setTextColor(ST7735_GREEN);
-   tft.println(WiFi.localIP());
+   tft.println( WiFi.localIP() );
 
    Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
@@ -178,6 +181,7 @@ void loop() {
      if (client.available()) {
       String line = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println(line);
+      connectMillis = millis();  // reset this value
      }
     }
     client.stop();
@@ -192,9 +196,27 @@ void loop() {
     tft.print( " " );  
     tft.println( host );
     tft.print(" Connection failed");
-   
+    if (( millis() - connectMillis ) > 600000) {   // Atbitrary 10 minute since connected
+      Serial.println("Rebooting");
+      ESP.reset();                                 // Kick it over and try from the beginning
+    }
    }
   }  
- } 
- delay( poll ); // every 10 seconds should be enough
+ }
+  
+ delay( poll ); // Set this to whatever you think is OK
+
 }
+
+void tftPrint ( char* value, bool newLine, int color ) {
+  tft.setTextColor( color );
+  if (newLine) {
+    tft.println( value );
+  }
+  else
+  {
+  tft.print( value);
+  }
+}
+
+
