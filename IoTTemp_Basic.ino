@@ -37,6 +37,7 @@ You will need a file "data.h" which looks like this
 #define CELSIUS             // Comment out if you prefer Fahrenheit
 
 #include "data.h"           // Means I don't keep uploading my API key to GitHub
+
 const char* ssid = SSID;
 const char* password = PASSWORD;
 const char* host = HOST;
@@ -55,7 +56,7 @@ int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Se
 int startWiFi;
 int connectMillis = millis();  // this gets reset after every successful data push
 
-int poll = 60000;     			  // Poll the sensor every 10 seconds (or so)
+int poll = 60000;     			  // Poll the sensor every 60 seconds (or so)
 
 void setup()
 {
@@ -87,6 +88,11 @@ void setup()
 }
 
 void loop() {
+
+ if ( millis() > 14400000) {   // Reboot every 4 hours - I have crappy internet
+      Serial.println("Rebooting");
+      ESP.restart();           // Kick it over and try from the beginning
+  }
 
  if( !(dht12.get() == 0 ) ){
   Serial.println("Cannot read DHT12 Sensor");
@@ -179,9 +185,10 @@ void loop() {
 
     while (client.connected()) {
      if (client.available()) {
-      String line = client.readStringUntil('\n');  // See what the host responds with.
-      Serial.println(line);
-      connectMillis = millis();  // reset this value
+      String resp = "Null";
+      resp = client.readStringUntil('\n');  // See what the host responds with.
+      Serial.println( resp );
+      tft.println( resp );
      }
     }
     client.stop();
@@ -196,10 +203,6 @@ void loop() {
     tft.print( " " );  
     tft.println( host );
     tft.print(" Connection failed");
-    if (( millis() - connectMillis ) > 600000) {   // Atbitrary 10 minute since connected
-      Serial.println("Rebooting");
-      ESP.reset();                                 // Kick it over and try from the beginning
-    }
    }
   }  
  }
