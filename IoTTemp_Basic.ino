@@ -32,11 +32,11 @@ You will need a file "data.h" which looks like this
 #endif
 
 #define TFT_RST    -1  			// you can also connect this to the Arduino reset
-							            	// in which case, set this #define pin to -1!
+					// in which case, set this #define pin to -1!
 
-#define CELSIUS             // Comment out if you prefer Fahrenheit
+#define CELSIUS             		// Comment out if you prefer Fahrenheit
 
-#include "data.h"           // Means I don't keep uploading my API key to GitHub
+#include "data.h"           		// Means I don't keep uploading my API key to GitHub
 
 const char* ssid = SSID;
 const char* password = PASSWORD;
@@ -52,11 +52,11 @@ float TempC;
 float TempF;
 float Humidity;
 
-int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enought   
+int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
-int connectMillis = millis();  // this gets reset after every successful data push
+int connectMillis = millis(); 		// this gets reset after every successful data push
 
-int poll = 60000;     			  // Poll the sensor every 60 seconds (or so)
+int poll = 60000;     			// Poll the sensor every 60 seconds (or so)
 
 void setup()
 {
@@ -64,8 +64,8 @@ void setup()
   Serial.println();
 
   tft.initR(INITR_144GREENTAB);
-  tft.setTextWrap(false); // Allow text to run off right edge
-  tft.setRotation( 1 );
+  tft.setTextWrap(false); 		// Allow text to run off right edge
+  tft.setRotation( 1 );			// Portrait mode
   tft.fillScreen(ST7735_BLACK);
 
   WiFi.begin(ssid, password);
@@ -76,20 +76,20 @@ void setup()
   tft.setTextColor(ST7735_BLUE);
   tft.println( "Connecting" );
 
-  startWiFi = millis() ;     // When we started waiting
-  
+  startWiFi = millis() ;    		// When we started waiting
+  // Loop and wait 
   while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
   {
     delay(500);
     Serial.print(".");
-	  tft.print(".");    		// Show that it is trying
+    tft.print(".");    			// Show that it is trying
   }
   
 }
 
 void loop() {
 
- if ( millis() > 14400000) {   // Reboot every 4 hours - I have crappy internet
+ if ( millis() > 14400000) {   // Reboot every 4 hours - I have crappy internet. You may not need this
       Serial.println("Rebooting");
       ESP.restart();           // Kick it over and try from the beginning
   }
