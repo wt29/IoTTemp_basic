@@ -7,6 +7,6 @@ You can create your own emoncms server, the code is open source or create an acc
 
 Create a local data.h and substitute your values as shown in the ino file.
 
-Once you have an account, subsitute the values in the #data.h recompile and upload. 
+Once you have an account, substitute the values in the #data.h recompile and upload. 
 
 Your values should appear in emoncms/inputs almost immediately. 
