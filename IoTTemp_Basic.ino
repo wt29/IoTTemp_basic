@@ -20,10 +20,10 @@ You will need a file "data.h" which looks like this
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
 
-#define CONNECTOR_10      // the v1.1.0 connector board has different CS and DC values
-                          // comment out if you have a v1.1.0 board
+#define CONNECTOR_101      // the v1.1.0 connector board has different CS and DC values
+                           // comment out if you have a v1.0 board
 
-#ifdef CONNECTOR_10
+#ifdef CONNECTOR_101
  #define TFT_CS     D4
  #define TFT_DC     D3
 #else                    
