@@ -1,7 +1,7 @@
 /* 
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
-Featuring the LOLON D1 ESP 8266 and associated shields.
+Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
@@ -13,17 +13,25 @@ You will need a file "data.h" which looks like this
 -------------------------------------
 */
 #warning Setup your data.h
+#include "data.h"                // Means I don't keep uploading my API key to GitHub
 
 #include <ESP8266WiFi.h>
 #include <WEMOS_DHT12.h>
+#include <WiFiUdp.h>
 
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
 
-#define CONNECTOR_101      // the v1.1.0 connector board has different CS and DC values
+#ifdef RTC
+ #include <Wire.h>
+ #include "RTClib.h"
+ 
+#endif
+
+#define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
                            // comment out if you have a v1.0 board
 
-#ifdef CONNECTOR_101
+#ifdef CONNECTOR_110
  #define TFT_CS     D4
  #define TFT_DC     D3
 #else                    
@@ -36,17 +44,46 @@ You will need a file "data.h" which looks like this
 
 #define CELSIUS             		// Comment out if you prefer Fahrenheit
 
-#include "data.h"           		// Means I don't keep uploading my API key to GitHub
+#define DEBUG
 
-const char* ssid = SSID;
+
+//
+// If we did then DEBUG_LOG will log a string, otherwise
+// it will be ignored as a comment.
+//
+#ifdef DEBUG
+#  define DEBUG_LOG(x) Serial.print(x)
+#else
+#  define DEBUG_LOG(x)
+#endif
+
+const char* ssid = MYSSID;
 const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 const char* nodeName = NODENAME;
 
+#ifdef FIXED_IP
+IPAddress staticIP(192,168,1,22);
+IPAddress gateway(192,168,1,1);
+IPAddress subnet(255,255,255,0);
+IPAddress dns1(8,8,8,8);
+#endif
+
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 DHT12 dht12;                                                        // Instance of dht12
 WiFiClient client;                                                  // Instance of WiFi Client
+
+#ifdef RTC
+RTC_DS1307 rtc;
+WiFiUDP Udp;
+unsigned int localPort = 2390;
+static const char ntpServerName[] = "time.nist.gov";
+const long timeZoneOffset = 36000L; // + 10 hours in seco
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+String timeStr; 
+
+#endif
 
 float TempC;
 float TempF;
@@ -57,17 +94,28 @@ int startWiFi;
 int connectMillis = millis(); 		// this gets reset after every successful data push
 
 int poll = 60000;     			// Poll the sensor every 60 seconds (or so)
+ 
 
 void setup()
 {
   Serial.begin(115200);
   Serial.println();
+  
+#ifdef RTC
+ if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+#endif 
 
   tft.initR(INITR_144GREENTAB);
   tft.setTextWrap(false); 		// Allow text to run off right edge
   tft.setRotation( 1 );			// Portrait mode
   tft.fillScreen(ST7735_BLACK);
 
+#ifdef FIXED_IP  
+  WiFi.config(staticIP, gateway, subnet, dns1);
+#endif
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
@@ -84,7 +132,15 @@ void setup()
     Serial.print(".");
     tft.print(".");    			// Show that it is trying
   }
-  
+   // if ( ! rtc.isrunning()) {
+   // Serial.println("RTC is not running - Setting time!");
+    // following line sets the RTC to the date & time this sketch was compiled
+//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // This line sets the RTC with an explicit date & time, for example to set
+    // January 21, 2014 at 3am you would call:
+    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+  // }
+  void SetRTC();
 }
 
 void loop() {
@@ -101,6 +157,31 @@ void loop() {
  }
  else
  {
+  
+#ifdef RTC
+  DateTime now = rtc.now();
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print(" (");
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(") ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
+  timeStr = String( now.hour(), DEC );
+  timeStr.concat( ":" ); 
+  timeStr.concat( String( now.minute(), DEC ));
+  timeStr.concat( ":" );
+  timeStr.concat( String( now.second(), DEC ));
+#endif  
+  // timeStr = now;
+  
   TempC = dht12.cTemp;
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
@@ -111,12 +192,14 @@ void loop() {
   Serial.println(TempF);
   Serial.print("Relative Humidity : ");
   Serial.println(Humidity);
-  Serial.println();
-  
+#ifdef RTC
+  Serial.print("Time : ");
+  Serial.println(timeStr);
+#endif
   tft.fillScreen(ST7735_BLACK);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
-  tft.setTextColor(ST7735_BLUE);
+  tft.setTextColor(0x006F);
   tft.println(" IoT Temp");
   tft.println("");
   tft.setTextColor(ST7735_WHITE);
@@ -131,10 +214,18 @@ void loop() {
   tft.print(" R/H ");
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
-  tft.println();
-
+  
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
+#ifdef RTC
+  tft.print( " Time:" );
+  tft.println( timeStr );
+#endif
+/*  tft.print(" ");
+  tft.print(now.hour(), DEC);
+  tft.print(":");
+  tft.println(now.minute(), DEC);
+*/  
   tft.print(" Node:");
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
@@ -223,3 +314,111 @@ void tftPrint ( char* value, bool newLine, int color ) {
 }
 
 
+#ifdef RTC
+const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
+byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
+
+time_t getNtpTime()
+{
+    IPAddress ntpServerIP;
+
+    // discard any previously received packets
+    while (Udp.parsePacket() > 0) ;
+
+    DEBUG_LOG("Initiating NTP sync\n");
+
+    // get a random server from the pool
+    WiFi.hostByName(ntpServerName, ntpServerIP);
+
+    DEBUG_LOG(ntpServerName);
+    DEBUG_LOG(" -> ");
+    DEBUG_LOG(ntpServerIP);
+    DEBUG_LOG("\n");
+
+    sendNTPpacket(ntpServerIP);
+
+    delay(50);
+    uint32_t beginWait = millis();
+
+    while ((millis() - beginWait) < 5000)
+    {
+        DEBUG_LOG("#");
+        int size = Udp.parsePacket();
+
+        if (size >= NTP_PACKET_SIZE)
+        {
+
+            DEBUG_LOG("Received NTP Response\n");
+            Udp.read(packetBuffer, NTP_PACKET_SIZE);
+
+            unsigned long secsSince1900;
+
+            // convert four bytes starting at location 40 to a long integer
+            secsSince1900 = (unsigned long)packetBuffer[40] << 24;
+            secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
+            secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
+            secsSince1900 |= (unsigned long)packetBuffer[43];
+
+            // Now convert to the real time.
+            unsigned long now = secsSince1900 - 2208988800UL;
+
+#ifdef TIME_ZONE
+            DEBUG_LOG("Adjusting time : ");
+            DEBUG_LOG(TIME_ZONE);
+            DEBUG_LOG("\n");
+
+            now += (TIME_ZONE * SECS_PER_HOUR);
+#endif
+
+            return (now);
+        }
+
+        delay(50);
+    }
+
+    DEBUG_LOG("NTP-sync failed\n");
+    return 0;
+}
+
+// send an NTP request to the time server at the given address
+void sendNTPpacket(IPAddress &address)
+{
+    // set all bytes in the buffer to 0
+    memset(packetBuffer, 0, NTP_PACKET_SIZE);
+
+    // Initialize values needed to form NTP request
+    // (see URL above for details on the packets)
+    packetBuffer[0] = 0b11100011;   // LI, Version, Mode
+    packetBuffer[1] = 0;     // Stratum, or type of clock
+    packetBuffer[2] = 6;     // Polling Interval
+    packetBuffer[3] = 0xEC;  // Peer Clock Precision
+
+    // 8 bytes of zero for Root Delay & Root Dispersion
+    packetBuffer[12] = 49;
+    packetBuffer[13] = 0x4E;
+    packetBuffer[14] = 49;
+    packetBuffer[15] = 52;
+
+    // all NTP fields have been given values, now
+    // you can send a packet requesting a timestamp:
+    Udp.beginPacket(address, 123); //NTP requests are to port 123
+    Udp.write(packetBuffer, NTP_PACKET_SIZE);
+    Udp.endPacket();
+}
+
+
+void SetRTC() {
+//  tft.setCursor( 15, 0 );
+  Serial.println( "Setting RTC" );
+  unsigned long fromNTP = getNtpTime();   // number of seconds since 1/1/1900
+  if ( fromNTP > 0UL  ) {
+    unsigned long UnixTime = fromNTP - 2208988800UL;
+    rtc.adjust( UnixTime + timeZoneOffset );
+    tft.print("*" );
+  }
+  else {
+    tft.print("X");
+  }
+}
+
+#endif
