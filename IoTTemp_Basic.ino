@@ -108,37 +108,15 @@ void setup()
   }
 #endif 
 
-  tft.initR(INITR_144GREENTAB);
-  tft.setTextWrap(false); 		// Allow text to run off right edge
-  tft.setRotation( 1 );			// Portrait mode
-  tft.fillScreen(ST7735_BLACK);
+connectWiFi();
 
-#ifdef FIXED_IP  
-  WiFi.config(staticIP, gateway, subnet, dns1);
-#endif
-  WiFi.begin(ssid, password);
-
-  Serial.print("Connecting");
-  tft.setTextSize(2);
-  tft.setCursor(0,0);
-  tft.setTextColor(ST7735_BLUE);
-  tft.println( "Connecting" );
-
-  startWiFi = millis() ;    		// When we started waiting
-  // Loop and wait 
-  while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
-  {
-    delay(500);
-    Serial.print(".");
-    tft.print(".");    			// Show that it is trying
-  }
    // if ( ! rtc.isrunning()) {
    // Serial.println("RTC is not running - Setting time!");
-    // following line sets the RTC to the date & time this sketch was compiled
-//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
+   // following line sets the RTC to the date & time this sketch was compiled
+   //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+   // This line sets the RTC with an explicit date & time, for example to set
+   // January 21, 2014 at 3am you would call:
+   // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   // }
   void SetRTC();
 }
@@ -158,6 +136,16 @@ void loop() {
  else
  {
   
+  tft.initR(INITR_144GREENTAB);
+  tft.setTextWrap(false);     // Allow text to run off right edge
+  tft.setRotation( 1 );     // Portrait mode
+  tft.fillScreen(ST7735_BLACK);
+
+  if (WiFi.status() != WL_CONNECTED){
+    connectWiFi();
+
+  }
+
 #ifdef RTC
   DateTime now = rtc.now();
   Serial.print(now.year(), DEC);
@@ -313,7 +301,33 @@ void tftPrint ( char* value, bool newLine, int color ) {
   }
 }
 
+void connectWiFi() {
+  tft.initR(INITR_144GREENTAB);
+  tft.setTextWrap(false);     // Allow text to run off right edge
+  tft.setRotation( 1 );     // Portrait mode
+  tft.fillScreen(ST7735_BLACK);
 
+#ifdef FIXED_IP  
+  WiFi.config(staticIP, gateway, subnet, dns1);
+#endif
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting");
+  tft.setTextSize(2);
+  tft.setCursor(0,0);
+  tft.setTextColor(ST7735_BLUE);
+  tft.println( "Connecting" );
+
+  startWiFi = millis() ;        // When we started waiting
+  // Loop and wait 
+  while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
+  {
+    delay(500);
+    Serial.print(".");
+    tft.print(".");         // Show that it is trying
+  }
+
+}
 #ifdef RTC
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
