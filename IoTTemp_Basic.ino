@@ -57,7 +57,7 @@ You will need a file "data.h" which looks like this
 #  define DEBUG_LOG(x)
 #endif
 
-const char* ssid = MYSSID;
+const char* ssid = LOCALSSID;
 const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
