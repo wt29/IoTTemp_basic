@@ -15,8 +15,6 @@ You will need a file "data.h" which looks like this
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
-#include <WEMOS_DHT12.h>
-
 #define WIFI
 
 #ifdef WIFI
@@ -24,6 +22,7 @@ You will need a file "data.h" which looks like this
  #include <WiFiUdp.h>
 #endif
 
+#include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
 
@@ -45,13 +44,11 @@ You will need a file "data.h" which looks like this
 #endif
 
 #define TFT_RST    -1  			// you can also connect this to the Arduino reset
-					// in which case, set this #define pin to -1!
+                  					// in which case, set this #define pin to -1!
 
-#define CELSIUS             		// Comment out if you prefer Fahrenheit
+#define CELSIUS          		// Comment out if you prefer Fahrenheit
 
 #define DEBUG
-
-
 //
 // If we did then DEBUG_LOG will log a string, otherwise
 // it will be ignored as a comment.
@@ -73,6 +70,7 @@ const char* nodeName = NODENAME;
  IPAddress gateway(192,168,1,1);
  IPAddress subnet(255,255,255,0);
  IPAddress dns1(8,8,8,8);
+
 #endif
 
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
@@ -178,8 +176,7 @@ void loop() {
   timeStr.concat( ":" );
   timeStr.concat( String( now.second(), DEC ));
 #endif  
-  // timeStr = now;
-  
+
   TempC = dht12.cTemp;
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
