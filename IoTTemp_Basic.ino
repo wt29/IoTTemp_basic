@@ -15,9 +15,14 @@ You will need a file "data.h" which looks like this
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
-#include <ESP8266WiFi.h>
 #include <WEMOS_DHT12.h>
-#include <WiFiUdp.h>
+
+#define WIFI
+
+#ifdef WIFI
+ #include <ESP8266WiFi.h>
+ #include <WiFiUdp.h>
+#endif
 
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
@@ -64,15 +69,17 @@ const char* APIKEY = MYAPIKEY;
 const char* nodeName = NODENAME;
 
 #ifdef FIXED_IP
-IPAddress staticIP(192,168,1,22);
-IPAddress gateway(192,168,1,1);
-IPAddress subnet(255,255,255,0);
-IPAddress dns1(8,8,8,8);
+ IPAddress staticIP(192,168,1,22);
+ IPAddress gateway(192,168,1,1);
+ IPAddress subnet(255,255,255,0);
+ IPAddress dns1(8,8,8,8);
 #endif
 
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 DHT12 dht12;                                                        // Instance of dht12
-WiFiClient client;                                                  // Instance of WiFi Client
+#ifdef WIFI
+ WiFiClient client;                                                  // Instance of WiFi Client
+#endif
 
 #ifdef RTC
 RTC_DS1307 rtc;
@@ -108,8 +115,9 @@ void setup()
   }
 #endif 
 
+#ifdef WIFI
 connectWiFi();
-
+#endif
    // if ( ! rtc.isrunning()) {
    // Serial.println("RTC is not running - Setting time!");
    // following line sets the RTC to the date & time this sketch was compiled
@@ -140,11 +148,13 @@ void loop() {
   tft.setTextWrap(false);     // Allow text to run off right edge
   tft.setRotation( 1 );     // Portrait mode
   tft.fillScreen(ST7735_BLACK);
-
+#ifdef WIFI
   if (WiFi.status() != WL_CONNECTED){
     connectWiFi();
 
   }
+
+#endif
 
 #ifdef RTC
   DateTime now = rtc.now();
@@ -218,6 +228,7 @@ void loop() {
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
 
+#ifdef WIFI
   if (WiFi.status() != WL_CONNECTED ) {
    tft.setTextColor(ST7735_RED);
    tft.println("");
@@ -284,6 +295,7 @@ void loop() {
     tft.print(" Connection failed");
    }
   }  
+#endif
  }
   
  delay( poll ); // Set this to whatever you think is OK
@@ -310,6 +322,7 @@ void connectWiFi() {
 #ifdef FIXED_IP  
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
+#ifdef WIFI
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
@@ -326,7 +339,7 @@ void connectWiFi() {
     Serial.print(".");
     tft.print(".");         // Show that it is trying
   }
-
+#endif
 }
 #ifdef RTC
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message

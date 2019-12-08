@@ -1,6 +1,8 @@
 # Contains API key
 data.h
 
+.vscode/
+
 # Windows thumbnail cache files
 Thumbs.db
 ehthumbs.db
