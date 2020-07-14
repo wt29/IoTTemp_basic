@@ -1,4 +1,5 @@
 /* 
+
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
 Featuring the LOLIN D1 ESP 8266 and associated shields.
@@ -7,7 +8,7 @@ You will need a file "data.h" which looks like this
 -----------------------
 #define SSID "<Your WiFi SSID>";
 #define PASSWORD "<Your WiFI Password>";
-#define HOST "<Your emoncms host - most likely emoncms.org>";
+#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define NODENAME "<Your NodeName - Kitchen for example";
 -------------------------------------
@@ -309,6 +310,8 @@ void tftPrint ( char* value, bool newLine, int color ) {
   tft.print( value);
   }
 }
+<<<<<<< HEAD
+=======
 
 void connectWiFi() {
   tft.initR(INITR_144GREENTAB);
@@ -446,3 +449,4 @@ void SetRTC() {
 }
 
 #endif
+>>>>>>> 23085f9f8be1109364c6999960146944fcab1379
