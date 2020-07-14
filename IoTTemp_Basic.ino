@@ -310,8 +310,6 @@ void tftPrint ( char* value, bool newLine, int color ) {
   tft.print( value);
   }
 }
-<<<<<<< HEAD
-=======
 
 void connectWiFi() {
   tft.initR(INITR_144GREENTAB);
@@ -449,4 +447,3 @@ void SetRTC() {
 }
 
 #endif
->>>>>>> 23085f9f8be1109364c6999960146944fcab1379
