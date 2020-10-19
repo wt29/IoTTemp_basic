@@ -12,7 +12,12 @@ You will need a file "data.h" which looks like this
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define NODENAME "<Your NodeName - Kitchen for example";
 -------------------------------------
+
+Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
+
 */
+#define VERSION 1.01
+
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
@@ -328,6 +333,7 @@ void connectWiFi() {
   tft.setCursor(0,0);
   tft.setTextColor(ST7735_BLUE);
   tft.println( "Connecting" );
+  tft.println( VERSION );
 
   startWiFi = millis() ;        // When we started waiting
   // Loop and wait 
