@@ -21,7 +21,7 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
-#define WIFI
+#undef WIFI
 
 #ifdef WIFI
  #include <ESP8266WiFi.h>
@@ -326,6 +326,7 @@ void connectWiFi() {
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
 #ifdef WIFI
+  Wifi.hostname( nodeName );
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
