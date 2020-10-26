@@ -233,7 +233,7 @@ void loop() {
    tft.println("");
    tft.print(" Error:");
    tft.setTextColor(ST7735_GREEN);
-   tft.println("No Connection");
+   tft.println("No Wifi Conn");
   
   }
   else
@@ -322,7 +322,7 @@ void connectWiFi() {
 #ifdef FIXED_IP  
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
-
+  WiFi.hostname( nodeName );
   WiFi.begin(ssid, password);
 /*  
   Serial.print("Connecting");
@@ -332,11 +332,12 @@ void connectWiFi() {
   tft.setTextColor(ST7735_BLUE);
   tft.println( "Connecting" );
   tft.println( VERSION );
-
+*/
   String strDebug = ssid ;
+  strDebug += "  ";
   strDebug +=  password;
   Serial.println( strDebug );
-  */
+  
   startWiFi = millis() ;        // When we started waiting
   // Loop and wait 
   while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
@@ -346,6 +347,8 @@ void connectWiFi() {
 //    tft.print(".");         // Show that it is trying
   }
   tft.print("");
+  Serial.print(WiFi.localIP());
+  Serial.printf("Connection status: %d\n", WiFi.status());
 }
 
 
