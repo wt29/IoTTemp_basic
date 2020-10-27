@@ -277,6 +277,7 @@ void loop() {
       String resp = "Null";
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
+      tft.println();
       tft.println( resp );
      }
     }
