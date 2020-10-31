@@ -21,7 +21,7 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
-#undef WIFI
+#define WIFI
 
 #ifdef WIFI
  #include <ESP8266WiFi.h>
@@ -120,7 +120,7 @@ void setup()
 #endif 
 
 #ifdef WIFI
-connectWiFi();
+// connectWiFi();
 #endif
    // if ( ! rtc.isrunning()) {
    // Serial.println("RTC is not running - Setting time!");
@@ -326,7 +326,7 @@ void connectWiFi() {
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
 #ifdef WIFI
-  Wifi.hostname( nodeName );
+  WiFi.hostname( nodeName );
   WiFi.begin(ssid, password);
 
   Serial.print("Connecting");
