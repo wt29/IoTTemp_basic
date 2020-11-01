@@ -16,7 +16,7 @@ You will need a file "data.h" which looks like this
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
 */
-#define VERSION 1.11
+#define VERSION 1.10
 
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
@@ -100,7 +100,7 @@ float TempC;
 float TempF;
 float Humidity;
 
-int waitForWiFi = 10000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enough 
+int waitForWiFi = 20000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
 int connectMillis = millis(); 		// this gets reset after every successful data push
 
@@ -119,9 +119,6 @@ void setup()
   }
 #endif 
 
-#ifdef WIFI
-// connectWiFi();
-#endif
    // if ( ! rtc.isrunning()) {
    // Serial.println("RTC is not running - Setting time!");
    // following line sets the RTC to the date & time this sketch was compiled
@@ -131,6 +128,11 @@ void setup()
    // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   // }
   void SetRTC();
+
+  tft.initR(INITR_144GREENTAB);
+  tft.setTextWrap(false);     // Allow text to run off right edge
+  tft.setRotation( 1 );     // Portrait mode
+
 }
 
 void loop() {
@@ -148,17 +150,6 @@ void loop() {
  else
  {
   
-  tft.initR(INITR_144GREENTAB);
-  tft.setTextWrap(false);     // Allow text to run off right edge
-  tft.setRotation( 1 );     // Portrait mode
-  tft.fillScreen(ST7735_BLACK);
-#ifdef WIFI
-  if (WiFi.status() != WL_CONNECTED){
-    connectWiFi();
-
-  }
-
-#endif
 
 #ifdef RTC
   DateTime now = rtc.now();
@@ -187,6 +178,7 @@ void loop() {
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
 
+  Serial.println();
   Serial.print("Temperature in Celsius : ");
   Serial.println(TempC);
   Serial.print("Temperature in Fahrenheit : ");
@@ -232,12 +224,16 @@ void loop() {
   tft.println(nodeName);
 
 #ifdef WIFI
+  if (WiFi.status() != WL_CONNECTED){
+    connectWiFi();
+
+  }
   if (WiFi.status() != WL_CONNECTED ) {
    tft.setTextColor(ST7735_RED);
    tft.println("");
    tft.print(" Error:");
    tft.setTextColor(ST7735_GREEN);
-   tft.println("No Connection");
+   tft.println("No Wifi Conn");
   
   }
   else
@@ -281,6 +277,7 @@ void loop() {
       String resp = "Null";
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
+      tft.println();
       tft.println( resp );
      }
     }
@@ -317,35 +314,45 @@ void tftPrint ( char* value, bool newLine, int color ) {
 }
 
 void connectWiFi() {
+/*
   tft.initR(INITR_144GREENTAB);
   tft.setTextWrap(false);     // Allow text to run off right edge
   tft.setRotation( 1 );     // Portrait mode
   tft.fillScreen(ST7735_BLACK);
-
+*/
 #ifdef FIXED_IP  
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
-#ifdef WIFI
   WiFi.hostname( nodeName );
   WiFi.begin(ssid, password);
-
+/*  
   Serial.print("Connecting");
+  tft.print(" Connecting");
   tft.setTextSize(2);
   tft.setCursor(0,0);
   tft.setTextColor(ST7735_BLUE);
   tft.println( "Connecting" );
   tft.println( VERSION );
-
+*/
+  String strDebug = ssid ;
+  strDebug += "  ";
+  strDebug +=  password;
+  Serial.println( strDebug );
+  
   startWiFi = millis() ;        // When we started waiting
   // Loop and wait 
   while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
   {
     delay(500);
     Serial.print(".");
-    tft.print(".");         // Show that it is trying
+//    tft.print(".");         // Show that it is trying
   }
-#endif
+  tft.print("");
+  Serial.print(WiFi.localIP());
+  Serial.printf("Connection status: %d\n", WiFi.status());
 }
+
+
 #ifdef RTC
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
