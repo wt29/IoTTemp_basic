@@ -21,6 +21,8 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
 
+#undef FIXED_IP
+
 #define WIFI
 
 #ifdef WIFI
@@ -314,26 +316,13 @@ void tftPrint ( char* value, bool newLine, int color ) {
 }
 
 void connectWiFi() {
-/*
-  tft.initR(INITR_144GREENTAB);
-  tft.setTextWrap(false);     // Allow text to run off right edge
-  tft.setRotation( 1 );     // Portrait mode
-  tft.fillScreen(ST7735_BLACK);
-*/
+
 #ifdef FIXED_IP  
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
-  WiFi.hostname( nodeName );
   WiFi.begin(ssid, password);
-/*  
-  Serial.print("Connecting");
-  tft.print(" Connecting");
-  tft.setTextSize(2);
-  tft.setCursor(0,0);
-  tft.setTextColor(ST7735_BLUE);
-  tft.println( "Connecting" );
-  tft.println( VERSION );
-*/
+//  WiFi.hostname( nodeName );
+
   String strDebug = ssid ;
   strDebug += "  ";
   strDebug +=  password;
@@ -345,10 +334,12 @@ void connectWiFi() {
   {
     delay(500);
     Serial.print(".");
-//    tft.print(".");         // Show that it is trying
   }
+
   tft.print("");
-  Serial.print(WiFi.localIP());
+  Serial.println("");
+  Serial.print("IP Address: ");
+  Serial.println( WiFi.localIP());
   Serial.printf("Connection status: %d\n", WiFi.status());
 }
 
