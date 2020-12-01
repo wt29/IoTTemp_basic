@@ -16,3 +16,4 @@ WeMOS D1 Mini
 TFT 1.4 Shield
 SHT 3.0 Temp and Humidity Shield
 TFT I2C connection shield - No strictly required but is makes remote connection of the Temp shield possible.
+
