@@ -12,8 +12,12 @@ Once you have an account, substitute the values in the #data.h recompile and upl
 Your values should appear in emoncms/inputs almost immediately. 
 
 BOM
+
 WeMOS D1 Mini
+
 TFT 1.4 Shield
+
 SHT 3.0 Temp and Humidity Shield
-TFT I2C connection shield - No strictly required but is makes remote connection of the Temp shield possible.
+
+TFT I2C connection shield - Not strictly required but is makes remote connection of the Temp shield possible.
 
