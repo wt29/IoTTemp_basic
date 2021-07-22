@@ -6,7 +6,7 @@ Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
-#define SSID "<Your WiFi SSID>";
+#define LOCALSSIS "<Your WiFi LOCALSSIS>";
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
@@ -16,7 +16,7 @@ You will need a file "data.h" which looks like this
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
 */
-#define VERSION 1.11
+#define VERSION 1.20
 
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
@@ -30,7 +30,14 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
  #include <WiFiUdp.h>
 #endif
 
+#define SHT30               // running the later SHT30 Temp / Humidity sensor
+
+#ifndef SHT30
 #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
+#else
+#include <WEMOS_SHT3X.h>
+#endif
+
 #include <Adafruit_GFX.h>    	// Core graphics library
 #include <Adafruit_ST7735.h>	// Hardware-specific library
 
@@ -55,7 +62,6 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
                   					// in which case, set this #define pin to -1!
 
 #define CELSIUS          		// Comment out if you prefer Fahrenheit
-
 #define DEBUG
 //
 // If we did then DEBUG_LOG will log a string, otherwise
@@ -82,7 +88,13 @@ const char* nodeName = NODENAME;
 #endif
 
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
+#ifdef SHT30
+SHT3X sht30(0x45);            // dodgy naming but don't need to change later on
+#else
 DHT12 dht12;                                                        // Instance of dht12
+#endif
+
+
 #ifdef WIFI
  WiFiClient client;                                                  // Instance of WiFi Client
 #endif
@@ -143,10 +155,13 @@ void loop() {
       Serial.println("Rebooting");
       ESP.restart();           // Kick it over and try from the beginning
   }
-
+#ifdef SHT30
+ if( !(sht30.get() == 0 ) ){
+#else  
  if( !(dht12.get() == 0 ) ){
-  Serial.println("Cannot read DHT12 Sensor");
-  tft.println("DHT12 Error");
+#endif
+  Serial.println("Cannot read Sensor");
+  tft.println("Sensor Error");
   
  }
  else
@@ -176,9 +191,15 @@ void loop() {
   timeStr.concat( String( now.second(), DEC ));
 #endif  
 
+#ifdef SHT30
+  TempC = sht30.cTemp;
+  TempF = sht30.fTemp;
+  Humidity = sht30.humidity;
+#else
   TempC = dht12.cTemp;
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
+#endif  
 
   Serial.println();
   Serial.print("Temperature in Celsius : ");
@@ -260,12 +281,12 @@ void loop() {
            request += nodeName;
            request += "&fulljson={\"temp\":";
   #ifdef CELSIUS
-           request += dht12.cTemp ;
+           request += TempC ;
   #else
-           request += dht12.fTemp ;
+           request += TempF ;
   #endif         
            request += ",\"humidity\":" ;
-           request += dht12.humidity ;
+           request += Humidity ;
            request += "}&apikey=";
            request += APIKEY; 
 
