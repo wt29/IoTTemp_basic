@@ -6,7 +6,7 @@ Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
-#define LOCALSSIS "<Your WiFi LOCALSSIS>";
+#define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
