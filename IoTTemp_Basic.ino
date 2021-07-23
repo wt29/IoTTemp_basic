@@ -32,10 +32,10 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 
 #define SHT30               // running the later SHT30 Temp / Humidity sensor
 
-#ifndef SHT30
-#include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
-#else
+#ifdef SHT30
 #include <WEMOS_SHT3X.h>
+#else
+#include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
 #endif
 
 #include <Adafruit_GFX.h>    	// Core graphics library
