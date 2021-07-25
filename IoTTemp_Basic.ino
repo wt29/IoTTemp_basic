@@ -6,11 +6,12 @@ Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
+#define NODENAME "<Your NodeName - Kitchen for example";
 #define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
-#define NODENAME "<Your NodeName - Kitchen for example";
+#define BRFACTOR <BRFactor Value>;  See code below this sets to 44 as there are more of these at Lilliput
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
@@ -19,7 +20,8 @@ Additional Libraries for DHT12 and SHT30
 https://github.com/wemos
 
 */
-#define VERSION 1.22            // Bushfire danger feeds  //edit bushFireRatingFactor to taste
+#define VERSION 1.23            // Bushfire danger feeds - now defaults to 44
+                                // edit bushFireRatingFactor to taste
 
 #warning Setup your data.h
 #include "data.h"               // Means I don't keep uploading my API key to GitHub
@@ -34,18 +36,22 @@ https://github.com/wemos
 #endif
 
 // Comment this out if using the DHT12
-#define SHT30               // running the later SHT30 Temp / Humidity sensor
+// #define SHT30               // running the later SHT30 Temp / Humidity sensor
 
 //BushFire Rating Factor (amount to times the result by for logging purposes)
 // Tony = 1
 // PB = 44 as this gives granularity for graph results out of 100
-int brFactor = 44 ;      //  adjust as desired 
 
+#ifndef BRFACTOR
+int brFactor = 44;
+#else
+int brFactor = BRFACTOR;
+#endif
 
 #ifdef SHT30
-#include <WEMOS_SHT3X.h>
+ #include <WEMOS_SHT3X.h>
 #else
-#include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
+ #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
 #endif
 
 #include <Adafruit_GFX.h>      // Core graphics library
@@ -57,8 +63,8 @@ int brFactor = 44 ;      //  adjust as desired
  
 #endif
 
-//#define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
-                           // comment out if you have a v1.0 board
+#define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
+                             // comment out if you have a v1.0 board
 
 #ifdef CONNECTOR_110
  #define TFT_CS     D4
