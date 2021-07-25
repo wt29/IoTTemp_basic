@@ -30,12 +30,9 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
  #include <WiFiUdp.h>
 #endif
 
-<<<<<<< HEAD
-// #define SHT30               // running the later SHT30 Temp / Humidity sensor
-=======
 // Comment this out if using the DHT12
 #define SHT30               // running the later SHT30 Temp / Humidity sensor
->>>>>>> 0df09172fbbd6c6d2360b424c3ccbd39b3556303
+
 
 #ifdef SHT30
 #include <WEMOS_SHT3X.h>
