@@ -30,7 +30,7 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
  #include <WiFiUdp.h>
 #endif
 
-#define SHT30               // running the later SHT30 Temp / Humidity sensor
+// #define SHT30               // running the later SHT30 Temp / Humidity sensor
 
 #ifndef SHT30
 #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
@@ -287,6 +287,8 @@ void loop() {
   #endif         
            request += ",\"humidity\":" ;
            request += Humidity ;
+           request += ",\"BFD\":" ;
+           request += (1/Humidity)*TempC ;
            request += "}&apikey=";
            request += APIKEY; 
 
