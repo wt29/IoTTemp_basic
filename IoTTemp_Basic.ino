@@ -1,14 +1,13 @@
 /* 
-
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
 Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
-#define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
+#define LOCALSSID "<Your WiFi SSID>";    Note the SSID is CaseSenSitive 
 #define PASSWORD "<Your WiFI Password>";
-#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
+#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:Just the host not the protocol 
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define NODENAME "<Your NodeName - Kitchen for example";
 -------------------------------------
@@ -32,7 +31,6 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 
 // Comment this out if using the DHT12
 #define SHT30               // running the later SHT30 Temp / Humidity sensor
-
 
 #ifdef SHT30
 #include <WEMOS_SHT3X.h>
