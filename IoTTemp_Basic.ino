@@ -16,7 +16,7 @@ You will need a file "data.h" which looks like this
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
 */
-#define VERSION 1.20
+#define VERSION 1.21   // Bushfire danger feeds
 
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
