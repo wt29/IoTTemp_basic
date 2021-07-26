@@ -12,12 +12,15 @@ Once you have an account, substitute the values in the #data.h recompile and upl
 Your values should appear in emoncms/inputs almost immediately. 
 
 BOM
+--------
 
 WeMOS D1 Mini
 
-TFT 1.4 Shield
+TFT 1.4 Shield <- no longer available. The OLED shields will work but probably need some minor code changes
 
-SHT 3.0 Temp and Humidity Shield
+SHT 30 Temp and Humidity Shield
 
 TFT I2C connection shield - Not strictly required but is makes remote connection of the Temp shield possible.
+
+https://lolin.aliexpress.com/store/1331105
 
