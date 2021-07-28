@@ -268,7 +268,11 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 #ifdef BMP
     bmpRet = HP303B.measurePressureOnce(pressure, 7);  
     pressure = pressure/100;
+  Serial.print("Pressure mBar : ");
+  Serial.println(pressure);
 #endif
+  Serial.print("Free Heap : ");
+  Serial.println(ESP.getFreeHeap());
 
 #ifdef RTC
   Serial.print("Time : ");
@@ -452,6 +456,23 @@ void connectWiFi() {
 
 }
 
+#ifdef WIFI
+void handleRoot() {
+  String response = "<h1>Welcome to Iot Temp </h1>";
+         response += "Node Name <b>" + String(nodeName) + "</b>"; 
+         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
+         response += "Temperature <b>" + String(TempC) + "C</b><br>";
+         response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
+         response += "Air Pressure <b>" + String(pressure) + " millibars</b><br>";
+         response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
+         
+  server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
+}
+
+void handleNotFound(){
+  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+}
+#endif
 
 #ifdef RTC
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
@@ -565,21 +586,4 @@ void SetRTC() {
   }
 }
 
-#endif
-
-#ifdef WIFI
-void handleRoot() {
-  String response = "<h1>Welcome to Iot Temp </h1>";
-         response += "Node Name <b>" + String(nodeName) + "</b>"; 
-         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
-         response += "Temperature <b>" + String(TempC) + "C</b><br>";
-         response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
-         response += "Air Pressure <b>" + String(pressure) + " millibars</b><br>";
-         
-  server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
-}
-
-void handleNotFound(){
-  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
-}
 #endif
