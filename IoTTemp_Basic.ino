@@ -11,7 +11,8 @@ You will need a file "data.h" which looks like this
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
-#define BRFACTOR <BRFactor Value>;  See code below this sets to 44 as there are more of these at Lilliput
+#define BRFACTOR 1;  See code below this sets to 44 as there are more of these at Lilliput
+#define HEADLESS;
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
