@@ -6,20 +6,25 @@ Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
+#define NODENAME "<Your NodeName - Kitchen for example";
 #define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
-#define NODENAME "<Your NodeName - Kitchen for example";
+#define BRFACTOR <BRFactor Value>;  See code below this sets to 44 as there are more of these at Lilliput
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
+Additional Libraries for DHT12 and SHT30
+https://github.com/wemos
+
 */
-#define VERSION 1.20
+#define VERSION 1.23            // Bushfire danger feeds - now defaults to 44
+                                // edit bushFireRatingFactor to taste
 
 #warning Setup your data.h
-#include "data.h"                // Means I don't keep uploading my API key to GitHub
+#include "data.h"               // Means I don't keep uploading my API key to GitHub
 
 #undef FIXED_IP
 
@@ -31,7 +36,17 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #endif
 
 // Comment this out if using the DHT12
-#define SHT30               // running the later SHT30 Temp / Humidity sensor
+// #define SHT30               // running the later SHT30 Temp / Humidity sensor
+
+//BushFire Rating Factor (amount to times the result by for logging purposes)
+// Tony = 1
+// PB = 44 as this gives granularity for graph results out of 100
+
+#ifndef BRFACTOR
+int brFactor = 44;
+#else
+int brFactor = BRFACTOR;
+#endif
 
 #ifdef SHT30
  #include <WEMOS_SHT3X.h>
@@ -39,10 +54,8 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
  #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
 #endif
 
-#ifndef HEADLESS
- #include <Adafruit_GFX.h>    	// Core graphics library
- #include <Adafruit_ST7735.h>	// Hardware-specific library
-#endif
+#include <Adafruit_GFX.h>      // Core graphics library
+#include <Adafruit_ST7735.h>  // Hardware-specific library
 
 #ifdef RTC
  #include <Wire.h>
@@ -51,7 +64,7 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #endif
 
 #define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
-                           // comment out if you have a v1.0 board
+                             // comment out if you have a v1.0 board
 
 #ifdef CONNECTOR_110
  #define TFT_CS     D4
@@ -61,10 +74,10 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
  #define TFT_DC     D8
 #endif
 
-#define TFT_RST    -1  			// you can also connect this to the Arduino reset
-                  					// in which case, set this #define pin to -1!
+#define TFT_RST    -1       // you can also connect this to the Arduino reset
+                            // in which case, set this #define pin to -1!
 
-#define CELSIUS          		// Comment out if you prefer Fahrenheit
+#define CELSIUS             // Comment out if you prefer Fahrenheit
 #define DEBUG
 //
 // If we did then DEBUG_LOG will log a string, otherwise
@@ -89,14 +102,15 @@ const char* nodeName = NODENAME;
  IPAddress dns1(8,8,8,8);
 
 #endif
-
+#ifdef HEADLESS
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
+#endif
+
 #ifdef SHT30
 SHT3X sht30(0x45);            // dodgy naming but don't need to change later on
 #else
 DHT12 dht12;                                                        // Instance of dht12
 #endif
-
 
 #ifdef WIFI
  WiFiClient client;                                                  // Instance of WiFi Client
@@ -117,11 +131,11 @@ float TempC;
 float TempF;
 float Humidity;
 
-int waitForWiFi = 20000 ;  		// How long to wait for the WiFi to connect - 10 Seconds should be enough 
+int waitForWiFi = 20000 ;     // How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
-int connectMillis = millis(); 		// this gets reset after every successful data push
+int connectMillis = millis();     // this gets reset after every successful data push
 
-int poll = 60000;     			// Poll the sensor every 60 seconds (or so)
+int poll = 60000;           // Poll the sensor every 60 seconds (or so)
  
 
 void setup()
@@ -300,6 +314,8 @@ void loop() {
   #endif         
            request += ",\"humidity\":" ;
            request += Humidity ;
+           request += ",\"BFD\":" ;
+           request += ((1/Humidity)*TempC*brFactor) ;
            request += "}&apikey=";
            request += APIKEY; 
 
