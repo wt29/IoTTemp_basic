@@ -1,13 +1,14 @@
 /* 
+
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
 Featuring the LOLIN D1 ESP 8266 and associated shields.
 
 You will need a file "data.h" which looks like this
 -----------------------
-#define LOCALSSID "<Your WiFi SSID>";    Note the SSID is CaseSenSitive 
+#define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
 #define PASSWORD "<Your WiFI Password>";
-#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:Just the host not the protocol 
+#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define NODENAME "<Your NodeName - Kitchen for example";
 -------------------------------------
@@ -15,7 +16,7 @@ You will need a file "data.h" which looks like this
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
 */
-#define VERSION 1.21   // Bushfire danger feeds
+#define VERSION 1.20
 
 #warning Setup your data.h
 #include "data.h"                // Means I don't keep uploading my API key to GitHub
@@ -33,13 +34,15 @@ Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Ardu
 #define SHT30               // running the later SHT30 Temp / Humidity sensor
 
 #ifdef SHT30
-#include <WEMOS_SHT3X.h>
+ #include <WEMOS_SHT3X.h>
 #else
-#include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
+ #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
 #endif
 
-#include <Adafruit_GFX.h>    	// Core graphics library
-#include <Adafruit_ST7735.h>	// Hardware-specific library
+#ifndef HEADLESS
+ #include <Adafruit_GFX.h>    	// Core graphics library
+ #include <Adafruit_ST7735.h>	// Hardware-specific library
+#endif
 
 #ifdef RTC
  #include <Wire.h>
@@ -143,10 +146,11 @@ void setup()
   // }
   void SetRTC();
 
+#ifndef HEADLESS
   tft.initR(INITR_144GREENTAB);
   tft.setTextWrap(false);     // Allow text to run off right edge
   tft.setRotation( 1 );     // Portrait mode
-
+#endif
 }
 
 void loop() {
@@ -211,7 +215,10 @@ void loop() {
 #ifdef RTC
   Serial.print("Time : ");
   Serial.println(timeStr);
+
 #endif
+
+#ifndef HEADLESS
   tft.fillScreen(ST7735_BLACK);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
@@ -246,21 +253,25 @@ void loop() {
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
 
+#endif
+
 #ifdef WIFI
   if (WiFi.status() != WL_CONNECTED){
     connectWiFi();
 
   }
   if (WiFi.status() != WL_CONNECTED ) {
+#ifndef HEADLESS
    tft.setTextColor(ST7735_RED);
    tft.println("");
    tft.print(" Error:");
    tft.setTextColor(ST7735_GREEN);
    tft.println("No Wifi Conn");
-  
+#endif  
   }
   else
   {
+#ifndef HEADLESS
    tft.setTextColor(ST7735_WHITE);
    tft.print(" SSID:" );
    tft.setTextColor(ST7735_GREEN);
@@ -269,6 +280,8 @@ void loop() {
    tft.print("   IP:" );
    tft.setTextColor(ST7735_GREEN);
    tft.println( WiFi.localIP() );
+
+#endif
 
    Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
@@ -287,8 +300,6 @@ void loop() {
   #endif         
            request += ",\"humidity\":" ;
            request += Humidity ;
-           request += ",\"BFD\":" ;
-           request += (1/Humidity)*TempC ;
            request += "}&apikey=";
            request += APIKEY; 
 
@@ -302,8 +313,10 @@ void loop() {
       String resp = "Null";
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
+#ifndef HEADLESS
       tft.println();
       tft.println( resp );
+#endif
      }
     }
     client.stop();
@@ -314,10 +327,12 @@ void loop() {
    {
     client.stop();
     Serial.println("Connection failed!]");
+#ifndef HEADLESS
     tft.setTextColor(ST7735_RED);
     tft.print( " " );  
     tft.println( host );
     tft.print(" Connection failed");
+#endif
    }
   }  
 #endif
@@ -327,6 +342,7 @@ void loop() {
 
 }
 
+#ifndef HEADLESS
 void tftPrint ( char* value, bool newLine, int color ) {
   tft.setTextColor( color );
   if (newLine) {
@@ -337,6 +353,7 @@ void tftPrint ( char* value, bool newLine, int color ) {
   tft.print( value);
   }
 }
+#endif
 
 void connectWiFi() {
 
@@ -359,11 +376,14 @@ void connectWiFi() {
     Serial.print(".");
   }
 
+#ifndef HEADLESS
   tft.print("");
   Serial.println("");
   Serial.print("IP Address: ");
   Serial.println( WiFi.localIP());
   Serial.printf("Connection status: %d\n", WiFi.status());
+#endif
+
 }
 
 
@@ -466,11 +486,16 @@ void SetRTC() {
   unsigned long fromNTP = getNtpTime();   // number of seconds since 1/1/1900
   if ( fromNTP > 0UL  ) {
     unsigned long UnixTime = fromNTP - 2208988800UL;
+#ifndef HEADLESS
     rtc.adjust( UnixTime + timeZoneOffset );
     tft.print("*" );
+#endif    
   }
   else {
+  }
+#ifndef HEADLESS    
     tft.print("X");
+#endif
   }
 }
 
