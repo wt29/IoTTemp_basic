@@ -459,11 +459,13 @@ void connectWiFi() {
 #ifdef WIFI
 void handleRoot() {
   String response = "<h1>Welcome to Iot Temp </h1>";
-         response += "Node Name <b>" + String(nodeName) + "</b>"; 
-         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
          response += "Temperature <b>" + String(TempC) + "C</b><br>";
          response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
+#ifdef BMP
          response += "Air Pressure <b>" + String(pressure) + " millibars</b><br>";
+#endif
+         response += "<br>Node Name <b>" + String(nodeName) + "</b><br>"; 
+         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
          response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
          
   server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
