@@ -7,12 +7,13 @@ Featuring the LOLIN D1 ESP 8266 and associated shields.
 You will need a file "data.h" which looks like this
 -----------------------
 #define NODENAME "<Your NodeName - Kitchen for example";
-#define LOCALSSID "<Your WiFi LOCALSSIS>";    Note the 
+#define LOCALSSID "<Your WiFi SSID>";    Can't use plain SSID as the WiFi library now defines it.
 #define PASSWORD "<Your WiFI Password>";
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define BRFACTOR 1;  See code below this sets to 44 as there are more of these at Lilliput
 #define HEADLESS;    Shove this in if you don't have a display.
+#define SHT30;       Add this if you are running the SHT30 temp/%RH sensor otherwise will default to DHT12
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
@@ -21,7 +22,10 @@ Additional Libraries for DHT12 and SHT30
 https://github.com/wemos
 
 */
-#define VERSION 1.23            // Bushfire danger feeds - now defaults to 44
+
+#define VERSION 1.25            // 1.25 WebClient
+                                // 1.24 Pressure and headless operation 
+                                // 1.23 Bushfire danger feeds - now defaults to 44
                                 // edit bushFireRatingFactor to taste
 
 #warning Setup your data.h
@@ -33,11 +37,11 @@ https://github.com/wemos
 
 #ifdef WIFI
  #include <ESP8266WiFi.h>
+ #include <WiFiClient.h>
  #include <WiFiUdp.h>
+ #include <ESP8266mDNS.h>
+ #include <ESP8266WebServer.h>   // Include the WebServer library
 #endif
-
-// Comment this out if using the DHT12
-// #define SHT30               // running the later SHT30 Temp / Humidity sensor
 
 //BushFire Rating Factor (amount to times the result by for logging purposes)
 // Tony = 1
@@ -124,7 +128,11 @@ DHT12 dht12;                  // Instance of dht12
 #endif
 
 #ifdef WIFI
- WiFiClient client;                                                  // Instance of WiFi Client
+ WiFiClient client;              // Instance of WiFi Client
+ ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
+ void handleRoot();              // function prototypes for HTTP handlers
+ void handleNotFound();
+
 #endif
 
 #ifdef RTC
@@ -138,15 +146,16 @@ String timeStr;
 
 #endif
 
-float TempC;
-float TempF;
-float Humidity;
-
 int waitForWiFi = 20000 ;     // How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
 int connectMillis = millis();     // this gets reset after every successful data push
 
 int poll = 60000;           // Poll the sensor every 60 seconds (or so)
+int lastRun = millis() - (poll + 1);
+
+float TempC;
+float TempF;
+float Humidity;
 
 void setup()
 {
@@ -171,6 +180,20 @@ void SetRTC();
   tft.setTextWrap(false);     // Allow text to run off right edge
   tft.setRotation( 1 );     // Portrait mode
 #endif
+
+#ifdef WIFI
+if (MDNS.begin( nodeName )) {              // Start the mDNS responder for <nodeName>.local
+    Serial.println("mDNS responder started");
+  } else {
+    Serial.println("Error setting up MDNS responder!");
+  }
+
+server.on("/", handleRoot);               // Call the 'handleRoot' function when a client requests URI "/"
+server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
+
+server.begin();                           // Actually start the server
+Serial.println("HTTP server started");
+#endif
 }
 
 void loop() {
@@ -179,6 +202,16 @@ void loop() {
       Serial.println("Rebooting");
       ESP.restart();           // Kick it over and try from the beginning
   }
+
+#ifdef WIFI 
+ server.handleClient();                    // Listen for HTTP requests from clients
+#endif
+
+// Serial.println( millis() );
+// Serial.println( lastRun+poll);
+
+if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
+
 #ifdef SHT30
  if( !(sht30.get() == 0 ) ){
 #else  
@@ -274,11 +307,6 @@ void loop() {
   tft.print( " Time:" );
   tft.println( timeStr );
 #endif
-/*  tft.print(" ");
-  tft.print(now.hour(), DEC);
-  tft.print(":");
-  tft.println(now.minute(), DEC);
-*/  
   tft.print(" Node:");
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
@@ -286,6 +314,7 @@ void loop() {
 #endif
 
 #ifdef WIFI
+
   if (WiFi.status() != WL_CONNECTED){
     connectWiFi();
 
@@ -312,11 +341,10 @@ void loop() {
    tft.println( WiFi.localIP() );
 
 #endif
-
-   Serial.printf("\n[Connecting to %s ... ", host, "\n");
+    Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
-   if (client.connect(host, 80))     {
-    Serial.println("Connected]");
+    if (client.connect(host, 80))     {
+     Serial.println("Connected]");
     Serial.println("[Sending a request]");
 
     String request  = "GET " ;
@@ -355,28 +383,30 @@ void loop() {
 #endif
      }
     }
-    client.stop();
-    Serial.println("\n[Disconnected]");
-
+    // client.stop();
+    // Serial.println("\n[Disconnected]");
+ //   }     // lastRun
    }
    else
    {
-    client.stop();
+    // client.stop();
     Serial.println("Connection failed!]");
-#ifndef HEADLESS
+ #ifndef HEADLESS
     tft.setTextColor(ST7735_RED);
     tft.print( " " );  
     tft.println( host );
     tft.print(" Connection failed");
-#endif
+ #endif
    }
+#endif  // def WIFI
   }  
-#endif
- }
+     lastRun = millis();
   
- delay( poll ); // Set this to whatever you think is OK
+ }    // Wifi Status 
+ }   // Sensor Read
+ // delay( poll ); // Set this to whatever you think is OK
 
-}
+}  // Loop
 
 #ifndef HEADLESS
 void tftPrint ( char* value, bool newLine, int color ) {
@@ -535,4 +565,21 @@ void SetRTC() {
   }
 }
 
+#endif
+
+#ifdef WIFI
+void handleRoot() {
+  String response = "<h1>Welcome to Iot Temp </h1>";
+         response += "Node Name <b>" + String(nodeName) + "</b>"; 
+         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
+         response += "Temperature <b>" + String(TempC) + "C</b><br>";
+         response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
+         response += "Air Pressure <b>" + String(pressure) + " millibars</b><br>";
+         
+  server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
+}
+
+void handleNotFound(){
+  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+}
 #endif
