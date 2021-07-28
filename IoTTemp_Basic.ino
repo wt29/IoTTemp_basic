@@ -12,7 +12,7 @@ You will need a file "data.h" which looks like this
 #define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
 #define MYAPIKEY "<Your API write key for emoncms>";
 #define BRFACTOR 1;  See code below this sets to 44 as there are more of these at Lilliput
-#define HEADLESS;
+#define HEADLESS;    Shove this in if you don't have a display.
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
@@ -49,6 +49,10 @@ int brFactor = 44;
 int brFactor = BRFACTOR;
 #endif
 
+#ifdef BMP    // Barometric Pressure
+ #include <LOLIN_HP303B.h>
+#endif
+ 
 #ifdef SHT30
  #include <WEMOS_SHT3X.h>
 #else
@@ -65,8 +69,7 @@ int brFactor = BRFACTOR;
 #endif
 
 #define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
-                             // comment out if you have a v1.0 board
-
+                           // comment out if you have a v1.0 board
 #ifdef CONNECTOR_110
  #define TFT_CS     D4
  #define TFT_DC     D3
@@ -103,14 +106,21 @@ const char* nodeName = NODENAME;
  IPAddress dns1(8,8,8,8);
 
 #endif
-#ifdef HEADLESS
+#ifndef HEADLESS
 Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 #endif
 
 #ifdef SHT30
-SHT3X sht30(0x45);            // dodgy naming but don't need to change later on
+SHT3X sht30(0x45);            
 #else
-DHT12 dht12;                                                        // Instance of dht12
+DHT12 dht12;                  // Instance of dht12
+#endif
+
+#ifdef BMP
+ LOLIN_HP303B HP303B;         // HP303B BMP instance
+ int32_t pressure;
+ int16_t bmpRet;
+
 #endif
 
 #ifdef WIFI
@@ -137,7 +147,6 @@ int startWiFi;
 int connectMillis = millis();     // this gets reset after every successful data push
 
 int poll = 60000;           // Poll the sensor every 60 seconds (or so)
- 
 
 void setup()
 {
@@ -151,15 +160,11 @@ void setup()
   }
 #endif 
 
-   // if ( ! rtc.isrunning()) {
-   // Serial.println("RTC is not running - Setting time!");
-   // following line sets the RTC to the date & time this sketch was compiled
-   //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-   // This line sets the RTC with an explicit date & time, for example to set
-   // January 21, 2014 at 3am you would call:
-   // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
-  // }
-  void SetRTC();
+#ifdef BMP
+  HP303B.begin(); // I2C address = 0x77
+#endif
+
+void SetRTC();
 
 #ifndef HEADLESS
   tft.initR(INITR_144GREENTAB);
@@ -227,6 +232,11 @@ void loop() {
   Serial.println(TempF);
   Serial.print("Relative Humidity : ");
   Serial.println(Humidity);
+#ifdef BMP
+    bmpRet = HP303B.measurePressureOnce(pressure, 7);  
+    pressure = pressure/100;
+#endif
+
 #ifdef RTC
   Serial.print("Time : ");
   Serial.println(timeStr);
@@ -252,7 +262,12 @@ void loop() {
   tft.print(" R/H ");
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
-  
+#ifdef BMP
+  tft.setTextColor(ST7735_WHITE);
+  tft.print("mBar ");
+  tft.setTextColor(ST7735_GREEN);
+  tft.println(pressure);
+#endif    
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
 #ifdef RTC
@@ -317,6 +332,10 @@ void loop() {
            request += Humidity ;
            request += ",\"BFD\":" ;
            request += ((1/Humidity)*TempC*brFactor) ;
+ #ifdef BMP
+           request += ",\"Pressure\":" ;
+           request += pressure ;
+ #endif
            request += "}&apikey=";
            request += APIKEY; 
 
