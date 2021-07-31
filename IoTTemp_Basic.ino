@@ -2,117 +2,165 @@
 
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
-Featuring the LOLIN D1 ESP 8266 and associated shields.
+Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
+https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
-You will need a file "data.h" which looks like this
------------------------
-#define NODENAME "<Your NodeName - Kitchen for example";
-#define LOCALSSID "<Your WiFi SSID>";    Can't use plain SSID as the WiFi library now defines it.
-#define PASSWORD "<Your WiFI Password>";
-#define HOST "<Your emoncms host - most likely emoncms.org>";  Note:just the host not the protocol
-#define MYAPIKEY "<Your API write key for emoncms>";
-#define BRFACTOR 1;  See code below this sets to 44 as there are more of these at Lilliput
-#define HEADLESS;    Shove this in if you don't have a display.
-#define SHT30;       Add this if you are running the SHT30 temp/%RH sensor otherwise will default to DHT12
+You will need a file "data.h" which looks like this.
+Hint: If you many units units, make a master file for reference and load up the correct data.h when compiling for each unit.
+
+-------------------------------------
+//template for data.h
+
+//Node and Network Setup
+#define NODENAME "<Your NodeName>";                 // eg "Kitchen"  Required and UNIQUE per site.  Also used to find mdns eg NODENAME.local
+
+#define WIFI                                        // Default is true to enable WiFi
+#define LOCALSSID "<Your WiFi SSID>";               // eg "AwesomeWifi"  Required Can't use plain SSID as the WiFi library now defines it.
+#define PASSWORD "<Your WiFI Password>";            // eg "HorseStapleSomething"  Required
+
+#define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
+#define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
+
+//Configuration and Shield Options
+//connector shield
+#define CONNECTOR_110    // Comment out if have old v1.0 shield that has different CS/DC values to the v1.1.0 connector shield.
+
+//#define HEADLESS      // Define (uncomment) if you don't have a display. Defaults to true
+
+
+//air quality
+
+//barometer
+//#define BMP            // Define (uncomment) to enable Barometric Air Pressure Shield Libraries and Logging 
+
+//light meter
+//placeHolder for now
+
+//temperature and humidity
+#define SHT30          // Comment out if you have old DHT12 temp/%RH sensor.  Will default to DHT30
+
+//water
+//placeHolder for now
+
+//wind speed
+//placeHolder for now
+//wind angle 
+//placeHolder for now
+
+//#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server.  Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
+//#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granuality/graphing purposes/100).  Define (uncomment) your own value.
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
-Additional Libraries for DHT12 and SHT30
+Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documents
 https://github.com/wemos
 
 */
-
-#define VERSION 1.25            // 1.25 WebClient
+#define VERSION 1.26            // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
+                                // 1.25 WebClient
                                 // 1.24 Pressure and headless operation 
                                 // 1.23 Bushfire danger feeds - now defaults to 44
                                 // edit bushFireRatingFactor to taste
 
-#warning Setup your data.h
-#include "data.h"               // Means I don't keep uploading my API key to GitHub
+#warning Setup your data.h.  Refer to template in code.
 
-#undef FIXED_IP
-
-#define WIFI
-
-#ifdef WIFI
- #include <ESP8266WiFi.h>
- #include <WiFiClient.h>
- #include <WiFiUdp.h>
- #include <ESP8266mDNS.h>
- #include <ESP8266WebServer.h>   // Include the WebServer library
-#endif
-
-//BushFire Rating Factor (amount to times the result by for logging purposes)
-// Tony = 1
-// PB = 44 as this gives granularity for graph results out of 100
-
-#ifndef BRFACTOR
-int brFactor = 44;
-#else
-int brFactor = BRFACTOR;
-#endif
-
-#ifdef BMP    // Barometric Pressure
- #include <LOLIN_HP303B.h>
-#endif
- 
-#ifdef SHT30
- #include <WEMOS_SHT3X.h>
-#else
- #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor
-#endif
-
-#include <Adafruit_GFX.h>      // Core graphics library
+#include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
+#include <Adafruit_GFX.h>     // Core graphics library
 #include <Adafruit_ST7735.h>  // Hardware-specific library
 
-#ifdef RTC
- #include <Wire.h>
- #include "RTClib.h"
- 
-#endif
 
-#define CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
-                           // comment out if you have a v1.0 board
-#ifdef CONNECTOR_110
- #define TFT_CS     D4
- #define TFT_DC     D3
-#else                    
- #define TFT_CS     D0
- #define TFT_DC     D8
-#endif
-
-#define TFT_RST    -1       // you can also connect this to the Arduino reset
-                            // in which case, set this #define pin to -1!
-
-#define CELSIUS             // Comment out if you prefer Fahrenheit
+//debug mode
 #define DEBUG
-//
-// If we did then DEBUG_LOG will log a string, otherwise
+// If we define then DEBUG_LOG will log a string, otherwise
 // it will be ignored as a comment.
-//
 #ifdef DEBUG
 #  define DEBUG_LOG(x) Serial.print(x)
 #else
 #  define DEBUG_LOG(x)
 #endif
 
-const char* ssid = LOCALSSID;
-const char* password = PASSWORD;
-const char* host = HOST;
-const char* APIKEY = MYAPIKEY;
-const char* nodeName = NODENAME;
 
+//Node and Network Setup
+#undef FIXED_IP // Declare this if want to declare all network settings.  Find and amend in code as needed for now, might move to config data.h later for purity...?
 #ifdef FIXED_IP
  IPAddress staticIP(192,168,1,22);
  IPAddress gateway(192,168,1,1);
  IPAddress subnet(255,255,255,0);
  IPAddress dns1(8,8,8,8);
+#endif
 
+#ifdef WIFI
+  #include <ESP8266WiFi.h>
+  #include <WiFiClient.h>
+  #include <WiFiUdp.h>
+  #include <ESP8266mDNS.h>
+  #include <ESP8266WebServer.h>   // Include the WebServer library
 #endif
+const char* nodeName = NODENAME;
+const char* ssid = LOCALSSID;
+const char* password = PASSWORD;
+const char* host = HOST;
+const char* APIKEY = MYAPIKEY;
+
+
+//Configuration and Shield Options
+
+//connector shield version
+#ifdef CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
+  #define TFT_CS     D4
+  #define TFT_DC     D3
+#else                    // comment out if you have a v1.0 board
+  #define TFT_CS     D0
+  #define TFT_DC     D8
+#endif
+
+//headless vs TFT?
 #ifndef HEADLESS
-Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
+  #define TFT_RST    -1       // you can also connect this to the Arduino reset. in which case, set this #define pin to -1!
+  Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 #endif
+
+//air quality shield placeholder
+
+#ifdef BMP    // Barometric Pressure shield
+  #include <LOLIN_HP303B.h>
+#endif
+
+//temperature and humidity shield
+#ifdef SHT30
+  #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
+#else
+  #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor.  Humidity not accurate.
+#endif
+
+//water logging placeholder
+//wind speed logging placeholder
+//wind angle logging placeholder
+
+
+//Do we want to log BushFire Danger Stuff? 
+#ifndef BFDlogging
+  //nothing needed for now
+#else
+  //logging so we need to setup BRFactor etc.
+  //BushFire Rating Factor (amount to multiply the result by for logging purposes)
+  #ifndef BRFACTOR
+    int brFactor = 44;
+  #else
+    int brFactor = BRFACTOR;
+  #endif
+#endif
+ 
+//Need to edit this to explain what/how/etc
+#ifdef RTC
+  #include <Wire.h>
+  #include "RTClib.h"
+#endif
+
+
+//Working variables etc.
+#define CELSIUS             // Comment out if you prefer Fahrenheit
 
 #ifdef SHT30
 SHT3X sht30(0x45);            
@@ -132,7 +180,6 @@ DHT12 dht12;                  // Instance of dht12
  ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
  void handleRoot();              // function prototypes for HTTP handlers
  void handleNotFound();
-
 #endif
 
 #ifdef RTC
@@ -143,8 +190,8 @@ static const char ntpServerName[] = "time.nist.gov";
 const long timeZoneOffset = 36000L; // + 10 hours in seco
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 String timeStr; 
-
 #endif
+
 
 int waitForWiFi = 20000 ;     // How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
