@@ -6,7 +6,7 @@ Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
 You will need a file "data.h" which looks like this.
-Hint: If you many units units, make a master file "master.txt" for reference and load up the correct data.h when compiling for each unit.
+Hint: If you many units units, make a master file "mydevices.txt" for reference and load up the correct data.h when compiling for each unit.
 Also add that file to the .gitignore
 
 -------------------------------------
@@ -50,6 +50,7 @@ Also add that file to the .gitignore
 
 //#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server.  Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
+// --end of data.h
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
