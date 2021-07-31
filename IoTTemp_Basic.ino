@@ -6,7 +6,8 @@ Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
 You will need a file "data.h" which looks like this.
-Hint: If you many units units, make a master file for reference and load up the correct data.h when compiling for each unit.
+Hint: If you many units units, make a master file "master.txt" for reference and load up the correct data.h when compiling for each unit.
+Also add that file to the .gitignore
 
 -------------------------------------
 //template for data.h
@@ -48,7 +49,7 @@ Hint: If you many units units, make a master file for reference and load up the 
 //placeHolder for now
 
 //#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server.  Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
-//#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granuality/graphing purposes/100).  Define (uncomment) your own value.
+//#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
@@ -106,7 +107,7 @@ const char* APIKEY = MYAPIKEY;
 
 //Configuration and Shield Options
 
-//connector shield version
+//connector shield version (Load Library and Instantiate)
 #ifdef CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
   #define TFT_CS     D4
   #define TFT_DC     D3
@@ -125,13 +126,18 @@ const char* APIKEY = MYAPIKEY;
 
 #ifdef BMP    // Barometric Pressure shield
   #include <LOLIN_HP303B.h>
+  LOLIN_HP303B HP303B;         // HP303B BMP instance
+  int32_t pressure;
+  int16_t bmpRet;
 #endif
 
 //temperature and humidity shield
 #ifdef SHT30
   #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
+  SHT3X sht30(0x45);
 #else
   #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor.  Humidity not accurate.
+  DHT12 dht12;                  // Instance of dht12
 #endif
 
 //water logging placeholder
@@ -159,37 +165,28 @@ const char* APIKEY = MYAPIKEY;
 #endif
 
 
-//Working variables etc.
+//Working Variables etc.
 #define CELSIUS             // Comment out if you prefer Fahrenheit
+float TempC;
+float TempF;
+float Humidity;
 
-#ifdef SHT30
-SHT3X sht30(0x45);            
-#else
-DHT12 dht12;                  // Instance of dht12
-#endif
-
-#ifdef BMP
- LOLIN_HP303B HP303B;         // HP303B BMP instance
- int32_t pressure;
- int16_t bmpRet;
-
-#endif
 
 #ifdef WIFI
- WiFiClient client;              // Instance of WiFi Client
- ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
- void handleRoot();              // function prototypes for HTTP handlers
- void handleNotFound();
+  WiFiClient client;              // Instance of WiFi Client
+  ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
+  void handleRoot();              // function prototypes for HTTP handlers
+  void handleNotFound();
 #endif
 
 #ifdef RTC
-RTC_DS1307 rtc;
-WiFiUDP Udp;
-unsigned int localPort = 2390;
-static const char ntpServerName[] = "time.nist.gov";
-const long timeZoneOffset = 36000L; // + 10 hours in seco
-char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-String timeStr; 
+  RTC_DS1307 rtc;
+  WiFiUDP Udp;
+  unsigned int localPort = 2390;
+  static const char ntpServerName[] = "time.nist.gov";
+  const long timeZoneOffset = 36000L; // + 10 hours in seco
+  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+  String timeStr; 
 #endif
 
 
@@ -199,10 +196,6 @@ int connectMillis = millis();     // this gets reset after every successful data
 
 int poll = 60000;           // Poll the sensor every 60 seconds (or so)
 int lastRun = millis() - (poll + 1);
-
-float TempC;
-float TempF;
-float Humidity;
 
 void setup()
 {
@@ -265,7 +258,9 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
  if( !(dht12.get() == 0 ) ){
 #endif
   Serial.println("Cannot read Sensor");
-  tft.println("Sensor Error");
+  #ifndef HEADLESS
+    tft.println("Sensor Error");
+  #endif
   
  }
  else
@@ -312,19 +307,20 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   Serial.println(TempF);
   Serial.print("Relative Humidity : ");
   Serial.println(Humidity);
+
 #ifdef BMP
     bmpRet = HP303B.measurePressureOnce(pressure, 7);  
     pressure = pressure/100;
   Serial.print("Pressure mBar : ");
   Serial.println(pressure);
 #endif
+
   Serial.print("Free Heap : ");
   Serial.println(ESP.getFreeHeap());
 
 #ifdef RTC
   Serial.print("Time : ");
   Serial.println(timeStr);
-
 #endif
 
 #ifndef HEADLESS
@@ -338,60 +334,56 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   tft.print(" Tmp " );
   tft.setTextColor(ST7735_GREEN);
   #ifdef CELSIUS
-  tft.println(TempC);
+    tft.println(TempC);
   #else
-  tft.println(TempF);
+    tft.println(TempF);
   #endif
   tft.setTextColor(ST7735_WHITE);
   tft.print(" R/H ");
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
-#ifdef BMP
-  tft.setTextColor(ST7735_WHITE);
-  tft.print("mBar ");
-  tft.setTextColor(ST7735_GREEN);
-  tft.println(pressure);
-#endif    
+  #ifdef BMP
+    tft.setTextColor(ST7735_WHITE);
+    tft.print("mBar ");
+    tft.setTextColor(ST7735_GREEN);
+    tft.println(pressure);
+  #endif    
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
-#ifdef RTC
-  tft.print( " Time:" );
-  tft.println( timeStr );
-#endif
+  #ifdef RTC
+    tft.print( " Time:" );
+    tft.println( timeStr );
+  #endif
   tft.print(" Node:");
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
-
 #endif
 
 #ifdef WIFI
-
   if (WiFi.status() != WL_CONNECTED){
     connectWiFi();
-
   }
   if (WiFi.status() != WL_CONNECTED ) {
-#ifndef HEADLESS
-   tft.setTextColor(ST7735_RED);
-   tft.println("");
-   tft.print(" Error:");
-   tft.setTextColor(ST7735_GREEN);
-   tft.println("No Wifi Conn");
-#endif  
+    #ifndef HEADLESS
+       tft.setTextColor(ST7735_RED);
+       tft.println("");
+       tft.print(" Error:");
+       tft.setTextColor(ST7735_GREEN);
+       tft.println("No Wifi Conn");
+    #endif  
   }
   else
   {
-#ifndef HEADLESS
-   tft.setTextColor(ST7735_WHITE);
-   tft.print(" SSID:" );
-   tft.setTextColor(ST7735_GREEN);
-   tft.println( ssid );
-   tft.setTextColor(ST7735_WHITE);
-   tft.print("   IP:" );
-   tft.setTextColor(ST7735_GREEN);
-   tft.println( WiFi.localIP() );
-
-#endif
+    #ifndef HEADLESS
+       tft.setTextColor(ST7735_WHITE);
+       tft.print(" SSID:" );
+       tft.setTextColor(ST7735_GREEN);
+       tft.println( ssid );
+       tft.setTextColor(ST7735_WHITE);
+       tft.print("   IP:" );
+       tft.setTextColor(ST7735_GREEN);
+       tft.println( WiFi.localIP() );
+    #endif
     Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
     if (client.connect(host, 80))     {
@@ -409,12 +401,16 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif         
            request += ",\"humidity\":" ;
            request += Humidity ;
+
+  #ifdef BFDlogging
            request += ",\"BFD\":" ;
            request += ((1/Humidity)*TempC*brFactor) ;
- #ifdef BMP
+  #endif
+  
+  #ifdef BMP
            request += ",\"Pressure\":" ;
            request += pressure ;
- #endif
+  #endif
            request += "}&apikey=";
            request += APIKEY; 
 
@@ -428,6 +424,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
       String resp = "Null";
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
+
 #ifndef HEADLESS
       tft.println();
       tft.println( resp );

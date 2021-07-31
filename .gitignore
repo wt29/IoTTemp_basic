@@ -1,5 +1,6 @@
 # Contains API key
 data.h
+mydevices.txt
 
 .vscode/
 
