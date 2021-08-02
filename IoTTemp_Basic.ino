@@ -67,7 +67,7 @@ Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documen
 https://github.com/wemos
 
 */
-#define VERSION 1.28            // 1.28 Moved the Static IP options to the data.h
+#define VERSION 1.28            // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
                                 // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
                                 // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
                                 // 1.25 WebClient
