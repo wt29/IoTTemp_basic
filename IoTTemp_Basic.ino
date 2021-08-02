@@ -141,8 +141,8 @@ const char* APIKEY = MYAPIKEY;
   #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
-  #include <WEMOS_DHT12.h>      // Mighty LOLIN DHT12 temperature and humidity sensor.  Humidity not accurate.
-  DHT12 dht12;                  // Instance of dht12
+  #include <WEMOS_DHT12.h>      // DHT12 temperature and humidity sensor.  Humidity not accurate. Deprecated!
+  DHT12 dht12;                  
 #endif
 
 //water logging placeholder
@@ -447,6 +447,7 @@ void handleRoot() {
          response += "<br>Node Name <b>" + String(nodeName) + "</b><br>"; 
          response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
          response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
+         response += "Software Version <b>" + String(VERSION) + "</b>";
          
   server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
 }
