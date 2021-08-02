@@ -1,4 +1,6 @@
 # Contains API key
+hackdesk.h
+external.h
 data.h
 mydevices.txt
 

@@ -7,6 +7,7 @@ https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG
 
 You will need a file "data.h" which looks like this.
 Hint: If you many units units, make a master file "mydevices.txt" for reference and load up the correct data.h when compiling for each unit.
+- TG. Or create a "kitchen.h" and change the local code to just include kitchen.h?
 Also add that file to the .gitignore
 
 -------------------------------------
@@ -77,9 +78,6 @@ https://github.com/wemos
 
 #warning Setup your data.h.  Refer to template in code.
 
-#include <Adafruit_GFX.h>     // Core graphics library
-#include <Adafruit_ST7735.h>  // Hardware-specific library
-
 //debug mode
 #define DEBUG
 // If we define then DEBUG_LOG will log a string, otherwise
@@ -93,8 +91,6 @@ https://github.com/wemos
 #define WIFI
 
 //Node and Network Setup
-
-
 #ifdef WIFI
   #include <ESP8266WiFi.h>
   #include <WiFiClient.h>
@@ -104,7 +100,13 @@ https://github.com/wemos
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
-#include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
+// #include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
+#include "hackdesk.h"            // Same as data.h 
+
+#ifndef HEADLESS                 // no screen
+ #include <Adafruit_GFX.h>       // Core graphics library
+ #include <Adafruit_ST7735.h>    // Hardware-specific library
+#endif
 
 const char* nodeName = NODENAME;
 const char* ssid = LOCALSSID;
