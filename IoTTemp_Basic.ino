@@ -24,9 +24,9 @@ Also add that file to the .gitignore
 
 //Configuration and Shield Options
 //connector shield
-#define CONNECTOR_110    // Comment out if have old v1.0 shield that has different CS/DC values to the v1.1.0 connector shield.
+//#define CONNECTOR_100    // Only if you have a 100 series shield otherwise defaults to 1.1.0 
 
-//#define HEADLESS      // Define (uncomment) if you don't have a display. Defaults to true
+// #define HEADLESS      // Define (uncomment) if you don't have a display. Defaults to true
 
 
 //air quality
