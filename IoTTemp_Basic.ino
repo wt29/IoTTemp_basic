@@ -48,7 +48,8 @@ Also add that file to the .gitignore
 //wind angle 
 //placeHolder for now
 
-//#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server.  Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
+//#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server. 
+                        // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 // --end of data.h
 -------------------------------------
@@ -59,7 +60,8 @@ Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documen
 https://github.com/wemos
 
 */
-#define VERSION 1.26            // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
+#define VERSION 1.27            // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
+                                // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
                                 // 1.25 WebClient
                                 // 1.24 Pressure and headless operation 
                                 // 1.23 Bushfire danger feeds - now defaults to 44
@@ -71,7 +73,6 @@ https://github.com/wemos
 #include <Adafruit_GFX.h>     // Core graphics library
 #include <Adafruit_ST7735.h>  // Hardware-specific library
 
-
 //debug mode
 #define DEBUG
 // If we define then DEBUG_LOG will log a string, otherwise
@@ -82,6 +83,7 @@ https://github.com/wemos
 #  define DEBUG_LOG(x)
 #endif
 
+#define WIFI
 
 //Node and Network Setup
 #undef FIXED_IP // Declare this if want to declare all network settings.  Find and amend in code as needed for now, might move to config data.h later for purity...?
@@ -99,20 +101,22 @@ https://github.com/wemos
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
 #endif
+
 const char* nodeName = NODENAME;
 const char* ssid = LOCALSSID;
 const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 
-
 //Configuration and Shield Options
 
 //connector shield version (Load Library and Instantiate)
-#ifdef CONNECTOR_110      // the v1.1.0 connector board has different CS and DC values
+#ifndef CONNECTOR_100    // the v1.1.0 connector board has different CS and DC values
+                         // Most of ours are the newer 1.1.0 shield
+                         // If your TFT stays "white" then you probably have a 1.0.0
   #define TFT_CS     D4
   #define TFT_DC     D3
-#else                    // comment out if you have a v1.0 board
+#else                    // Otherwise use the 1.0.0 values
   #define TFT_CS     D0
   #define TFT_DC     D8
 #endif
@@ -145,9 +149,8 @@ const char* APIKEY = MYAPIKEY;
 //wind speed logging placeholder
 //wind angle logging placeholder
 
-
 //Do we want to log BushFire Danger Stuff? 
-#ifndef BFDlogging
+#ifndef BFDLOGGING      // All defines should be UC
   //nothing needed for now
 #else
   //logging so we need to setup BRFactor etc.
@@ -159,19 +162,11 @@ const char* APIKEY = MYAPIKEY;
   #endif
 #endif
  
-//Need to edit this to explain what/how/etc
-#ifdef RTC
-  #include <Wire.h>
-  #include "RTClib.h"
-#endif
-
-
 //Working Variables etc.
 #define CELSIUS             // Comment out if you prefer Fahrenheit
 float TempC;
 float TempF;
 float Humidity;
-
 
 #ifdef WIFI
   WiFiClient client;              // Instance of WiFi Client
@@ -179,17 +174,6 @@ float Humidity;
   void handleRoot();              // function prototypes for HTTP handlers
   void handleNotFound();
 #endif
-
-#ifdef RTC
-  RTC_DS1307 rtc;
-  WiFiUDP Udp;
-  unsigned int localPort = 2390;
-  static const char ntpServerName[] = "time.nist.gov";
-  const long timeZoneOffset = 36000L; // + 10 hours in seco
-  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-  String timeStr; 
-#endif
-
 
 int waitForWiFi = 20000 ;     // How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
@@ -203,18 +187,9 @@ void setup()
   Serial.begin(115200);
   Serial.println();
   
-#ifdef RTC
- if (! rtc.begin()) {
-    Serial.println("Couldn't find RTC");
-    while (1);
-  }
-#endif 
-
 #ifdef BMP
   HP303B.begin(); // I2C address = 0x77
 #endif
-
-void SetRTC();
 
 #ifndef HEADLESS
   tft.initR(INITR_144GREENTAB);
@@ -235,7 +210,7 @@ server.onNotFound(handleNotFound);        // When a client requests an unknown U
 server.begin();                           // Actually start the server
 Serial.println("HTTP server started");
 #endif
-}
+}       // Setup
 
 void loop() {
 
@@ -247,9 +222,6 @@ void loop() {
 #ifdef WIFI 
  server.handleClient();                    // Listen for HTTP requests from clients
 #endif
-
-// Serial.println( millis() );
-// Serial.println( lastRun+poll);
 
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
 
@@ -267,29 +239,6 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
  else
  {
   
-
-#ifdef RTC
-  DateTime now = rtc.now();
-  Serial.print(now.year(), DEC);
-  Serial.print('/');
-  Serial.print(now.month(), DEC);
-  Serial.print('/');
-  Serial.print(now.day(), DEC);
-  Serial.print(" (");
-  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-  Serial.print(") ");
-  Serial.print(now.hour(), DEC);
-  Serial.print(':');
-  Serial.print(now.minute(), DEC);
-  Serial.print(':');
-  Serial.print(now.second(), DEC);
-  Serial.println();
-  timeStr = String( now.hour(), DEC );
-  timeStr.concat( ":" ); 
-  timeStr.concat( String( now.minute(), DEC ));
-  timeStr.concat( ":" );
-  timeStr.concat( String( now.second(), DEC ));
-#endif  
 
 #ifdef SHT30
   TempC = sht30.cTemp;
@@ -310,8 +259,8 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   Serial.println(Humidity);
 
 #ifdef BMP
-    bmpRet = HP303B.measurePressureOnce(pressure, 7);  
-    pressure = pressure/100;
+  bmpRet = HP303B.measurePressureOnce(pressure, 7);  
+  pressure = pressure/100;
   Serial.print("Pressure mBar : ");
   Serial.println(pressure);
 #endif
@@ -319,16 +268,11 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   Serial.print("Free Heap : ");
   Serial.println(ESP.getFreeHeap());
 
-#ifdef RTC
-  Serial.print("Time : ");
-  Serial.println(timeStr);
-#endif
-
 #ifndef HEADLESS
   tft.fillScreen(ST7735_BLACK);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
-  tft.setTextColor(0x006F);
+  tft.setTextColor(ST7735_ORANGE);   // Can't read the "Dark Blue"
   tft.println(" IoT Temp");
   tft.println("");
   tft.setTextColor(ST7735_WHITE);
@@ -351,10 +295,6 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif    
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
-  #ifdef RTC
-    tft.print( " Time:" );
-    tft.println( timeStr );
-  #endif
   tft.print(" Node:");
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
@@ -432,13 +372,9 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 #endif
      }
     }
-    // client.stop();
-    // Serial.println("\n[Disconnected]");
- //   }     // lastRun
    }
    else
    {
-    // client.stop();
     Serial.println("Connection failed!]");
  #ifndef HEADLESS
     tft.setTextColor(ST7735_RED);
@@ -452,10 +388,9 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
      lastRun = millis();
   
  }    // Wifi Status 
- }   // Sensor Read
- // delay( poll ); // Set this to whatever you think is OK
+ }    // Sensor Read
 
-}  // Loop
+}     // Loop
 
 #ifndef HEADLESS
 void tftPrint ( char* value, bool newLine, int color ) {
@@ -476,7 +411,7 @@ void connectWiFi() {
   WiFi.config(staticIP, gateway, subnet, dns1);
 #endif
   WiFi.begin(ssid, password);
-//  WiFi.hostname( nodeName );
+  WiFi.hostname( nodeName );     // This will show up in your DHCP server
 
   String strDebug = ssid ;
   strDebug += "  ";
@@ -519,118 +454,4 @@ void handleRoot() {
 void handleNotFound(){
   server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
-#endif
-
-#ifdef RTC
-const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
-byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
-
-time_t getNtpTime()
-{
-    IPAddress ntpServerIP;
-
-    // discard any previously received packets
-    while (Udp.parsePacket() > 0) ;
-
-    DEBUG_LOG("Initiating NTP sync\n");
-
-    // get a random server from the pool
-    WiFi.hostByName(ntpServerName, ntpServerIP);
-
-    DEBUG_LOG(ntpServerName);
-    DEBUG_LOG(" -> ");
-    DEBUG_LOG(ntpServerIP);
-    DEBUG_LOG("\n");
-
-    sendNTPpacket(ntpServerIP);
-
-    delay(50);
-    uint32_t beginWait = millis();
-
-    while ((millis() - beginWait) < 5000)
-    {
-        DEBUG_LOG("#");
-        int size = Udp.parsePacket();
-
-        if (size >= NTP_PACKET_SIZE)
-        {
-
-            DEBUG_LOG("Received NTP Response\n");
-            Udp.read(packetBuffer, NTP_PACKET_SIZE);
-
-            unsigned long secsSince1900;
-
-            // convert four bytes starting at location 40 to a long integer
-            secsSince1900 = (unsigned long)packetBuffer[40] << 24;
-            secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
-            secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
-            secsSince1900 |= (unsigned long)packetBuffer[43];
-
-            // Now convert to the real time.
-            unsigned long now = secsSince1900 - 2208988800UL;
-
-#ifdef TIME_ZONE
-            DEBUG_LOG("Adjusting time : ");
-            DEBUG_LOG(TIME_ZONE);
-            DEBUG_LOG("\n");
-
-            now += (TIME_ZONE * SECS_PER_HOUR);
-#endif
-
-            return (now);
-        }
-
-        delay(50);
-    }
-
-    DEBUG_LOG("NTP-sync failed\n");
-    return 0;
-}
-
-// send an NTP request to the time server at the given address
-void sendNTPpacket(IPAddress &address)
-{
-    // set all bytes in the buffer to 0
-    memset(packetBuffer, 0, NTP_PACKET_SIZE);
-
-    // Initialize values needed to form NTP request
-    // (see URL above for details on the packets)
-    packetBuffer[0] = 0b11100011;   // LI, Version, Mode
-    packetBuffer[1] = 0;     // Stratum, or type of clock
-    packetBuffer[2] = 6;     // Polling Interval
-    packetBuffer[3] = 0xEC;  // Peer Clock Precision
-
-    // 8 bytes of zero for Root Delay & Root Dispersion
-    packetBuffer[12] = 49;
-    packetBuffer[13] = 0x4E;
-    packetBuffer[14] = 49;
-    packetBuffer[15] = 52;
-
-    // all NTP fields have been given values, now
-    // you can send a packet requesting a timestamp:
-    Udp.beginPacket(address, 123); //NTP requests are to port 123
-    Udp.write(packetBuffer, NTP_PACKET_SIZE);
-    Udp.endPacket();
-}
-
-
-void SetRTC() {
-//  tft.setCursor( 15, 0 );
-  Serial.println( "Setting RTC" );
-  unsigned long fromNTP = getNtpTime();   // number of seconds since 1/1/1900
-  if ( fromNTP > 0UL  ) {
-    unsigned long UnixTime = fromNTP - 2208988800UL;
-#ifndef HEADLESS
-    rtc.adjust( UnixTime + timeZoneOffset );
-    tft.print("*" );
-#endif    
-  }
-  else {
-  }
-#ifndef HEADLESS    
-    tft.print("X");
-#endif
-  }
-}
-
 #endif
