@@ -22,36 +22,43 @@ Also add that file to the .gitignore
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
 
-//Configuration and Shield Options
-//connector shield
-//#define CONNECTOR_100    // Only if you have a 100 series shield otherwise defaults to 1.1.0 
+Add the following block to your data.h to set fixed IP addresses. Configure as required
+#define STATIC_IP
+IPAddress staticIP( 192,168,1,22 );
+IPAddress gateway( 192,168,1,1 );
+IPAddress subnet(255,255,255,0 );
+IPAddress dns1( 8,8,8,8 );
 
-// #define HEADLESS      // Define (uncomment) if you don't have a display. Defaults to true
+Configuration and Shield Options
 
+#define CONNECTOR_100 // Only if you have a 100 series shield otherwise defaults to 1.1.0 
 
-//air quality
+#define HEADLESS      // Define if you don't have a display. Defaults to true
 
-//barometer
-//#define BMP            // Define (uncomment) to enable Barometric Air Pressure Shield Libraries and Logging 
+Sensors
 
-//light meter
+- temperature and humidity
+#define DHT12          // If you have the older DHT12 otherwise will default to DHT30
+
+- Barometer
+#define BMP            // Define to enable Barometric Air Pressure Shield Libraries and Logging 
+
+- Light meter
 //placeHolder for now
 
-//temperature and humidity
-#define SHT30          // Comment out if you have old DHT12 temp/%RH sensor.  Will default to DHT30
-
-//water
+- water
 //placeHolder for now
 
-//wind speed
-//placeHolder for now
-//wind angle 
-//placeHolder for now
+- wind speed
+- wind angle 
+//placeHolders for now
 
-//#define BFDlogging    // Define (uncomment) to enable logging BushFireFactor to the server. 
-                        // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
-//#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
+#define BFDlogging    // Define to enable logging BushFireFactor to the server. 
+                      // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
+
+#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 // --end of data.h
+
 -------------------------------------
 
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
@@ -60,7 +67,8 @@ Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documen
 https://github.com/wemos
 
 */
-#define VERSION 1.27            // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
+#define VERSION 1.28            // 1.28 Moved the Static IP options to the data.h
+                                // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
                                 // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
                                 // 1.25 WebClient
                                 // 1.24 Pressure and headless operation 
@@ -69,7 +77,6 @@ https://github.com/wemos
 
 #warning Setup your data.h.  Refer to template in code.
 
-#include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
 #include <Adafruit_GFX.h>     // Core graphics library
 #include <Adafruit_ST7735.h>  // Hardware-specific library
 
@@ -86,13 +93,7 @@ https://github.com/wemos
 #define WIFI
 
 //Node and Network Setup
-#undef FIXED_IP // Declare this if want to declare all network settings.  Find and amend in code as needed for now, might move to config data.h later for purity...?
-#ifdef FIXED_IP
- IPAddress staticIP(192,168,1,22);
- IPAddress gateway(192,168,1,1);
- IPAddress subnet(255,255,255,0);
- IPAddress dns1(8,8,8,8);
-#endif
+
 
 #ifdef WIFI
   #include <ESP8266WiFi.h>
@@ -101,6 +102,9 @@ https://github.com/wemos
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
 #endif
+
+// Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
+#include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
 
 const char* nodeName = NODENAME;
 const char* ssid = LOCALSSID;
@@ -137,7 +141,7 @@ const char* APIKEY = MYAPIKEY;
 #endif
 
 //temperature and humidity shield
-#ifdef SHT30
+#ifndef DHT12
   #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
@@ -225,7 +229,7 @@ void loop() {
 
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
 
-#ifdef SHT30
+#ifndef DHT12
  if( !(sht30.get() == 0 ) ){
 #else  
  if( !(dht12.get() == 0 ) ){
@@ -240,7 +244,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
  {
   
 
-#ifdef SHT30
+#ifndef DHT12
   TempC = sht30.cTemp;
   TempF = sht30.fTemp;
   Humidity = sht30.humidity;
@@ -407,8 +411,8 @@ void tftPrint ( char* value, bool newLine, int color ) {
 
 void connectWiFi() {
 
-#ifdef FIXED_IP  
-  WiFi.config(staticIP, gateway, subnet, dns1);
+#ifdef STATIC_IP  
+ WiFi.config( staticIP, gateway, subnet, dns1 );
 #endif
   WiFi.begin(ssid, password);
   WiFi.hostname( nodeName );     // This will show up in your DHCP server
