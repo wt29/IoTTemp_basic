@@ -1,19 +1,20 @@
 /* 
-
 IOT Temp - a somewhat basic temperature and humidity logger. 
 
 Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
-You will need a file "data.h" which looks like this.
-Hint: If you many units units, make a master file "mydevices.txt" for reference and load up the correct data.h when compiling for each unit.
-- TG. Or create a "kitchen.h" and change the local code to just include kitchen.h?
-Also add that file to the .gitignore
+You will need a file "data.h" - copy the template below.
+if you have lots of these keep the individual configs in myDeviceName.h for easy reference to save remembering config and board versions.
+Occasionaly you may need to add an extra setting from the template below if you are enabling new features.
+e.g. create a "kitchen.h" and change the local code to just include kitchen.h?
+
+Also add that file.h or *.h to the .gitignore so you dont upload your wifi password to github!
 
 -------------------------------------
 //template for data.h
 
-//Node and Network Setup
+//** Node and Network Setup
 #define NODENAME "<Your NodeName>";                 // eg "Kitchen"  Required and UNIQUE per site.  Also used to find mdns eg NODENAME.local
 
 #define WIFI                                        // Default is true to enable WiFi
@@ -23,41 +24,49 @@ Also add that file to the .gitignore
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
 
-Add the following block to your data.h to set fixed IP addresses. Configure as required
-#define STATIC_IP
-IPAddress staticIP( 192,168,1,22 );
-IPAddress gateway( 192,168,1,1 );
-IPAddress subnet(255,255,255,0 );
-IPAddress dns1( 8,8,8,8 );
+//Enable the following block to your data.h to set fixed IP addresses. Configure as required
+//#define STATIC_IP
+//IPAddress staticIP( 192,168,1,22 );
+//IPAddress gateway( 192,168,1,1 );
+//IPAddress subnet(255,255,255,0 );
+//IPAddress dns1( 8,8,8,8 );
 
-Configuration and Shield Options
 
-#define CONNECTOR_100 // Only if you have a 100 series shield otherwise defaults to 1.1.0 
+// **Configuration and Shield Options
 
-#define HEADLESS      // Define if you don't have a display. Defaults to true
+//#define CONNECTOR_100 // 100 series shield otherwise defaults to 1.1.0.  
+                      // Note that some shields show 1.1.0 but are really version 1.0.0.  
+                      // If your TFT stays "white" or is blank on bootup then you probably have a 1.0.0 regardless of branding.
 
-Sensors
+//#define HEADLESS      // Define if you don't have a display. Defaults to true
 
-- temperature and humidity
-#define HASDHT12        // If you have the older DHT12 otherwise will default to DHT30
 
-- Barometer
-#define BMP            // Define to enable Barometric Air Pressure Shield Libraries and Logging 
+// **Sensors
 
-- Light meter
+//- temperature and humidity
+//#define HASDHT12        // If you have the older DHT12 otherwise will default to DHT30
+                          // DHT12 temperature and humidity sensor was originally used but humidity not accurate. Deprecated!
+                          // DHT30 is default and best bang for buck at present.
+
+//- Barometer
+//#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
+//#define BMPaltitude 300;    // Required.  Enter your local altitude in meters eg 300.  Pressure is adjusted by reading + ((200/1000)*BMPaltitude).  
+                          // Pressure reading needs to be adjusted to increase by 200 for every rise of 1000m above sea level.  
+
+//- Light meter
 //placeHolder for now
 
-- water
+//- water
 //placeHolder for now
 
-- wind speed
-- wind angle 
+//- wind speed
+//- wind angle 
 //placeHolders for now
 
-#define BFDlogging    // Define to enable logging BushFireFactor to the server. 
+//#define BFDlogging    // Define to enable logging BushFireFactor to the server. 
                       // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 
-#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
+//#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 // --end of data.h
 
 -------------------------------------
@@ -65,10 +74,12 @@ Sensors
 Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
 
 Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documents
+They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.28            // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
+#define VERSION 1.29            // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
+                                // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
                                 // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
                                 // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
                                 // 1.25 WebClient
@@ -100,8 +111,11 @@ https://github.com/wemos
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
-// #include "data.h"             // Create from template above.  Means we dont need to keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "hackdesk.h"            // Same as data.h 
+// #include "data.h"             // Create this file from template above.  
+//                                  Update here if you changed the name.
+//                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
+#include "Outside.h"
+
 
 #ifndef HEADLESS                 // no screen
  #include <Adafruit_GFX.h>       // Core graphics library
@@ -114,12 +128,11 @@ const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 
+
 //Configuration and Shield Options
 
 //connector shield version (Load Library and Instantiate)
 #ifndef CONNECTOR_100    // the v1.1.0 connector board has different CS and DC values
-                         // Most of ours are the newer 1.1.0 shield
-                         // If your TFT stays "white" then you probably have a 1.0.0
   #define TFT_CS     D4
   #define TFT_DC     D3
 #else                    // Otherwise use the 1.0.0 values
@@ -144,10 +157,10 @@ const char* APIKEY = MYAPIKEY;
 
 //temperature and humidity shield
 #ifndef HASDHT12
-  #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
+  #include <WEMOS_SHT3X.h>      // Current best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
-  #include <WEMOS_DHT12.h>      // DHT12 temperature and humidity sensor.  Humidity not accurate. Deprecated!
+  #include <WEMOS_DHT12.h>      // DHT12 temperature and humidity sensor. 
   DHT12 dht12;                  
 #endif
 
@@ -181,7 +194,7 @@ float Humidity;
   void handleNotFound();
 #endif
 
-int waitForWiFi = 20000 ;     // How long to wait for the WiFi to connect - 10 Seconds should be enough 
+int waitForWiFi = 20000 ;         // How long to wait for the WiFi to connect - 10 Seconds should be enough 
 int startWiFi;
 int connectMillis = millis();     // this gets reset after every successful data push
 
@@ -266,7 +279,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 
 #ifdef BMP
   bmpRet = HP303B.measurePressureOnce(pressure, 7);  
-  pressure = pressure/100;
+  pressure = (pressure/100) + ((200/1000)*BMPaltitude);
   Serial.print("Pressure mBar : ");
   Serial.println(pressure);
 #endif
@@ -334,8 +347,8 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
     Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
     if (client.connect(host, 80))     {
-     Serial.println("Connected]");
-    Serial.println("[Sending a request]");
+      Serial.println("Connected]");
+      Serial.println("[Sending a request]");
 
     String request  = "GET " ;
            request += "/input/post?node=";
