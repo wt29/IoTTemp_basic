@@ -143,7 +143,7 @@ const char* APIKEY = MYAPIKEY;
 #endif
 
 //temperature and humidity shield
-#ifndef DHT12
+#ifndef HASDHT12
   #include <WEMOS_SHT3X.h>      // Best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
@@ -231,7 +231,7 @@ void loop() {
 
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
 
-#ifndef DHT12
+#ifndef HASDHT12
  if( !(sht30.get() == 0 ) ){
 #else  
  if( !(dht12.get() == 0 ) ){
@@ -246,7 +246,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
  {
   
 
-#ifndef DHT12
+#ifndef HASDHT12
   TempC = sht30.cTemp;
   TempF = sht30.fTemp;
   Humidity = sht30.humidity;
