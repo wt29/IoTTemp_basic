@@ -39,7 +39,7 @@ Configuration and Shield Options
 Sensors
 
 - temperature and humidity
-#define DHT12          // If you have the older DHT12 otherwise will default to DHT30
+#define HASDHT12        // If you have the older DHT12 otherwise will default to DHT30
 
 - Barometer
 #define BMP            // Define to enable Barometric Air Pressure Shield Libraries and Logging 
