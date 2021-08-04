@@ -159,7 +159,7 @@ const char* APIKEY = MYAPIKEY;
 
   //setup and calculate the correct barometer pressure for your altitude based on data.h
   int localAltitude = LOCALALTITUDE;
-  float BMPCorrection = ( localAltitude * 0.2);
+  float BMPCorrection = ( localAltitude * 0.117 );
   float pressureMSL;
 
 #endif
