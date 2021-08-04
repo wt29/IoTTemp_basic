@@ -54,6 +54,7 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
                               // The reported pressure is corrected  by currentSensorReading + ((200/1000)*YourLocalAltitude).  
                           // Notes Barometric Pressure readings need to be calibrated by 200 for every rise of 1000m above sea level.  
                           // eg for 300m abobe sea level, the calc is 0.2 * 300 = 60
+//#define PRESSUREABSOLUTE    // log the absolute pressure
 
 //- Light meter
 //placeHolder for now
@@ -378,8 +379,13 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif
   
   #ifdef BMP
+#ifdef PRESSUREABSOLUTE
            request += ",\"Pressure\":" ;
            request += pressure ;
+#else
+           request += ",\"Pressure\":" ;
+           request += pressureMSL ;
+#endif           
   #endif
            request += "}&apikey=";
            request += APIKEY; 
