@@ -50,10 +50,10 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
 //- Barometer
 //#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
-//#define BMPALTITUDE 60; // Required.  Enter a factor eg 60 to adjust the pressure reading by.
-                        // Calculate your local figure by determing local altitude in meters eg 300.  Pressure is corrected  by currentReading + ((200/1000)*YourLocalAltitude).  
-                        // As Barometric Pressure reading needs to be adjusted to increase by 200 for every rise of 1000m above sea level.  
-                        // eg for 300m abobe sea level, the calc is 0.2 * 300 = 60
+//#define LOCALALTITUDE 300;  // Required if using BMP.  Enter your local altitude in meters eg 300.  
+                              // The reported pressure is corrected  by currentSensorReading + ((200/1000)*YourLocalAltitude).  
+                          // Notes Barometric Pressure readings need to be calibrated by 200 for every rise of 1000m above sea level.  
+                          // eg for 300m abobe sea level, the calc is 0.2 * 300 = 60
 
 //- Light meter
 //placeHolder for now
@@ -80,7 +80,8 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.29            // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
+#define VERSION 1.30            // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
+                                // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
                                 // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
                                 // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
                                 // 1.26 Tweaks to wording for data.h.  New Defaults for CONNECTOR and BFD logging.  Prep for new shields. Mild code refactor.
@@ -155,7 +156,10 @@ const char* APIKEY = MYAPIKEY;
   LOLIN_HP303B HP303B;         // HP303B BMP instance
   int32_t pressure;
   int16_t bmpRet;
-  int BMPaltitude = BMPALTITUDE;
+
+  //setup and calculate the correct barometer pressure for your altitude based on data.h
+  int localAltitude = LOCALALTITUDE;
+  float BMPaltitude = localAltitude * (200 / 1000);
 #endif
 
 //temperature and humidity shield
