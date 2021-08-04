@@ -117,7 +117,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "data.h"
+#include "external.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -159,7 +159,9 @@ const char* APIKEY = MYAPIKEY;
 
   //setup and calculate the correct barometer pressure for your altitude based on data.h
   int localAltitude = LOCALALTITUDE;
-  float BMPaltitude = localAltitude * (200 / 1000);
+  float BMPCorrection = ( localAltitude * 0.2);
+  float pressureMSL;
+
 #endif
 
 //temperature and humidity shield
@@ -286,7 +288,8 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 
 #ifdef BMP
   bmpRet = HP303B.measurePressureOnce(pressure, 7);  
-  pressure = ((pressure/100) + BMPaltitude); //correct pressure to mBar then adjust for altitude defined in data.h
+  pressure = pressure/100;                    // only interested in millbars not pascals
+  pressureMSL = ( pressure + BMPCorrection ); // adjust for altitude defined in data.h
   Serial.print("Pressure mBar : ");
   Serial.println(pressure);
 #endif
@@ -468,10 +471,12 @@ void handleRoot() {
          response += "Temperature <b>" + String(TempC) + "C</b><br>";
          response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
 #ifdef BMP
-         response += "Air Pressure <b>" + String(pressure) + " millibars</b><br>";
+         response += "Air Pressure local <b>" + String(pressure) + " millibars</b><br>";
+         response += "Air Pressure MSL <b>" + String(pressureMSL) + " millibars</b><br>";
 #endif
-         response += "<br>Node Name <b>" + String(nodeName) + "</b><br>"; 
-         response += "   Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
+         response += "<br>";
+         response += "Node Name <b>" + String(nodeName) + "</b><br>"; 
+         response += "Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
          response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
          response += "Software Version <b>" + String(VERSION) + "</b>";
          
