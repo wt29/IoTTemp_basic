@@ -50,10 +50,10 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
 //- Barometer
 //#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
-//#define LOCALALTITUDE 300;  // Required if using BMP.  Enter your local altitude in meters eg 300.  
-                              // The reported pressure is corrected  by currentSensorReading + ((200/1000)*YourLocalAltitude).  
-                          // Notes Barometric Pressure readings need to be calibrated by 200 for every rise of 1000m above sea level.  
-                          // eg for 300m abobe sea level, the calc is 0.2 * 300 = 60
+//#define LOCALALTITUDE 300;  // Required if using BMP.  Enter your local altitude in meters eg 300
+                              // The reported pressure is corrected  by currentSensorReading + ((117/1000)*YourLocalAltitude).  
+                          // Notes Barometric Pressure readings need to be calibrated by 117 for every rise of 1000m above sea level.  
+                          // eg for 300m abobe sea level, the calc is 0.117 * 300 = 35
 
 //- Light meter
 //placeHolder for now
@@ -117,7 +117,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "external.h"
+#include "Outside.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -291,7 +291,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   pressure = pressure/100;                    // only interested in millbars not pascals
   pressureMSL = ( pressure + BMPCorrection ); // adjust for altitude defined in data.h
   Serial.print("Pressure mBar : ");
-  Serial.println(pressure);
+  Serial.println(pressureMSL);
 #endif
 
   Serial.print("Free Heap : ");
