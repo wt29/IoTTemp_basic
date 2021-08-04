@@ -50,8 +50,10 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
 //- Barometer
 //#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
-//#define BMPaltitude 300;    // Required.  Enter your local altitude in meters eg 300.  Pressure is adjusted by reading + ((200/1000)*BMPaltitude).  
-                          // Pressure reading needs to be adjusted to increase by 200 for every rise of 1000m above sea level.  
+//#define BMPALTITUDE 60; // Required.  Enter a factor eg 60 to adjust the pressure reading by.
+                        // Calculate your local figure by determing local altitude in meters eg 300.  Pressure is corrected  by currentReading + ((200/1000)*YourLocalAltitude).  
+                        // As Barometric Pressure reading needs to be adjusted to increase by 200 for every rise of 1000m above sea level.  
+                        // eg for 300m abobe sea level, the calc is 0.2 * 300 = 60
 
 //- Light meter
 //placeHolder for now
@@ -63,7 +65,7 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 //- wind angle 
 //placeHolders for now
 
-//#define BFDlogging    // Define to enable logging BushFireFactor to the server. 
+//#define BFDLOGGING    // Define to enable logging BushFireFactor to the server. 
                       // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
@@ -114,7 +116,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "Outside.h"
+#include "data.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -153,6 +155,7 @@ const char* APIKEY = MYAPIKEY;
   LOLIN_HP303B HP303B;         // HP303B BMP instance
   int32_t pressure;
   int16_t bmpRet;
+  int BMPaltitude = BMPALTITUDE;
 #endif
 
 //temperature and humidity shield
@@ -279,7 +282,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 
 #ifdef BMP
   bmpRet = HP303B.measurePressureOnce(pressure, 7);  
-  pressure = (pressure/100) + ((200/1000)*BMPaltitude);
+  pressure = ((pressure/100) + BMPaltitude); //correct pressure to mBar then adjust for altitude defined in data.h
   Serial.print("Pressure mBar : ");
   Serial.println(pressure);
 #endif
@@ -362,7 +365,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
            request += ",\"humidity\":" ;
            request += Humidity ;
 
-  #ifdef BFDlogging
+  #ifdef BFDLOGGING
            request += ",\"BFD\":" ;
            request += ((1/Humidity)*TempC*brFactor) ;
   #endif
