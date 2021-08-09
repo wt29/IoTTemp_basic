@@ -1,5 +1,5 @@
 /* 
-IOT Temp - a somewhat basic temperature and humidity logger. 
+IOT Temp - the little weather station that could.  Read/Display/Log. 
 
 Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
@@ -43,6 +43,17 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
 // **Sensors
 
+//- Air Quality
+//#define AIRQUALITY    // enable SGP30 Shield 
+                        // TVOC: (Total Volatile Organic Compound) concentration within a range of 0 to 60,000 parts per billion (ppb)
+                        // eCO2: (equivalent calculated carbon-dioxide) concentration  400-60000 ppm
+                        // While this shield can be run in isolation its better to get the actual temp and humidity inputs
+                        // for more accurate calculations - in our case we feed it data from our temp/humidity shield.
+                        // https://www.wemos.cc/en/latest/d1_mini_shield/sgp30.html
+                        // Library Manager should find it but...  https://github.com/adafruit/Adafruit_SGP30
+                        // docs: https://adafruit.github.io/Adafruit_SGP30/html/class_adafruit___s_g_p30.html#a3cea979c8b14138cef092f13102b0e22
+
+                        
 //- temperature and humidity
 //#define HASDHT12        // If you have the older DHT12 otherwise will default to DHT30
                           // DHT12 temperature and humidity sensor was originally used but humidity not accurate. Deprecated!
@@ -80,7 +91,8 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.30            // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
+#define VERSION 1.31            // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
+                                // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
                                 // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
                                 // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
                                 // 1.27 Removed Real Time Clock (RTC) routines. Only useful if RTC and SD Card logging available.
@@ -102,6 +114,7 @@ https://github.com/wemos
 #  define DEBUG_LOG(x)
 #endif
 
+
 #define WIFI
 
 //Node and Network Setup
@@ -117,7 +130,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "Outside.h"
+#include "testing.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -149,7 +162,13 @@ const char* APIKEY = MYAPIKEY;
   Adafruit_ST7735 tft = Adafruit_ST7735( TFT_CS, TFT_DC, TFT_RST);    // Instance of tft
 #endif
 
-//air quality shield placeholder
+//air quality shield 
+#ifdef AIRQUALITY //Air Quality Shield
+  #include "Adafruit_SGP30.h"
+  Adafruit_SGP30 sgp30;         //SPG3030 Air quality instance
+  float AQ_TVOC;    //  ppb Total Volatile Organic Components
+  float AQ_eCO2;    //  ppm estimated concentration of carbon dioxide calculated from known TVOC concentration
+#endif
 
 #ifdef BMP    // Barometric Pressure shield
   #include <LOLIN_HP303B.h>
@@ -161,7 +180,6 @@ const char* APIKEY = MYAPIKEY;
   int localAltitude = LOCALALTITUDE;
   float BMPCorrection = ( localAltitude * 0.117 );
   float pressureMSL;
-
 #endif
 
 //temperature and humidity shield
@@ -169,7 +187,7 @@ const char* APIKEY = MYAPIKEY;
   #include <WEMOS_SHT3X.h>      // Current best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
-  #include <WEMOS_DHT12.h>      // DHT12 temperature and humidity sensor. 
+  #include <WEMOS_DHT12.h>      // depreciated DHT12 temperature and humidity sensor. 
   DHT12 dht12;                  
 #endif
 
@@ -212,9 +230,14 @@ int lastRun = millis() - (poll + 1);
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(115200); //baud rate
   Serial.println();
   
+#ifdef AIRQUALITY
+  sgp30.begin(); // startup/calibrate the air quality shield
+  sgp30.IAQinit();
+#endif
+
 #ifdef BMP
   HP303B.begin(); // I2C address = 0x77
 #endif
@@ -254,13 +277,15 @@ void loop() {
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
 
 #ifndef HASDHT12
+  Serial.println("Reading SHT30 Temperature/Humidity Shield");
  if( !(sht30.get() == 0 ) ){
 #else  
+  Serial.println("Reading DHT12 Temperature/Humidity Shield");
  if( !(dht12.get() == 0 ) ){
 #endif
-  Serial.println("Cannot read Sensor");
+  Serial.println("Cannot read Temperature/Humidity Shield");
   #ifndef HEADLESS
-    tft.println("Sensor Error");
+    tft.println("Temp/Humidity Shield Error");
   #endif
   
  }
@@ -286,7 +311,32 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   Serial.print("Relative Humidity : ");
   Serial.println(Humidity);
 
+#ifdef AIRQUALITY
+  Serial.println("Reading sgp30 Air Quality Shield");
+
+  //set the absolute humidity to enable humidity compensation for the air quality signals
+  sgp30.setHumidity(Humidity);
+  
+  if (sgp30.IAQmeasure())
+  {
+    AQ_eCO2 = sgp30.eCO2;
+    AQ_TVOC = sgp30.TVOC;      
+    Serial.print("TVOC "); Serial.print(AQ_TVOC); Serial.print(" ppb\t");
+    Serial.print("eCO2 "); Serial.print(AQ_eCO2); Serial.println(" ppm");
+    Serial.print("Raw H2 "); Serial.print(sgp30.rawH2); Serial.print(" \t");
+    Serial.print("Raw Ethanol "); Serial.print(sgp30.rawEthanol); Serial.println("");
+   }
+  else
+  {
+  Serial.println("Cannot read AQ Sensor");
+  #ifndef HEADLESS
+    tft.println("AQ  Sensor Error");
+  #endif
+  }
+#endif
+
 #ifdef BMP
+  Serial.println("Reading HP303B Barometric Pressure Shield");
   bmpRet = HP303B.measurePressureOnce(pressure, 7);  
   pressure = pressure/100;                    // only interested in millbars not pascals
   pressureMSL = ( pressure + BMPCorrection ); // adjust for altitude defined in data.h
@@ -303,19 +353,22 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   tft.setTextSize(2);
   tft.setTextColor(ST7735_ORANGE);   // Can't read the "Dark Blue"
   tft.println(" IoT Temp");
-  tft.println("");
+  //tft.println(""); //PB Needed an extra line on the screen
   tft.setTextColor(ST7735_WHITE);
   tft.print(" Tmp " );
   tft.setTextColor(ST7735_GREEN);
+
   #ifdef CELSIUS
     tft.println(TempC);
   #else
     tft.println(TempF);
   #endif
+  
   tft.setTextColor(ST7735_WHITE);
   tft.print(" R/H ");
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
+
   #ifdef BMP
     tft.setTextColor(ST7735_WHITE);
     tft.print("mBar ");
@@ -323,6 +376,23 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
     int intMSL = pressureMSL;
     tft.println( intMSL );
   #endif    
+
+  #ifdef AIRQUALITY
+    tft.setTextSize(1); //doesnt need to be as large as other key data.
+    tft.setTextColor(ST7735_WHITE);
+    tft.print("  eCO2 ");
+    tft.setTextColor(ST7735_GREEN);
+    int inteCO2 = AQ_eCO2;
+    tft.print( inteCO2 );
+    tft.setTextColor(ST7735_WHITE);
+    tft.print("  TVOC ");
+    tft.setTextColor(ST7735_GREEN);
+    int intTVOC = AQ_TVOC;
+    tft.println( intTVOC );
+    tft.println("");
+    tft.setTextSize(2); //back to defaults
+  #endif 
+     
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
   tft.print(" Node:");
@@ -376,6 +446,13 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #ifdef BFDLOGGING
            request += ",\"BFD\":" ;
            request += ((1/Humidity)*TempC*brFactor) ;
+  #endif
+
+  #ifdef AIRQUALITY
+          request += ",\"eCO2\":" ;
+          request += inteCO2 ;
+          request += ",\"TVOC\":" ;
+          request += intTVOC ;          
   #endif
   
   #ifdef BMP
