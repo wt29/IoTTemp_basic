@@ -55,9 +55,9 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
                         
 //- temperature and humidity
-//#define HASDHT12        // If you have the older DHT12 otherwise will default to DHT30
+//#define HASDHT12        // If you have the older DHT12 otherwise will default to SHT30
                           // DHT12 temperature and humidity sensor was originally used but humidity not accurate. Deprecated!
-                          // DHT30 is default and best bang for buck at present.
+                          // SHT30 is default and best bang for buck at present.
 
 //- Barometer
 //#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
@@ -130,7 +130,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "testing.h"
+#include "Outside.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -184,7 +184,7 @@ const char* APIKEY = MYAPIKEY;
 
 //temperature and humidity shield
 #ifndef HASDHT12
-  #include <WEMOS_SHT3X.h>      // Current best bang for back in typical human/environment temp and humidity ranges
+  #include <WEMOS_SHT3X.h>      // SHT30 Current best bang for back in typical human/environment temp and humidity ranges
   SHT3X sht30(0x45);
 #else
   #include <WEMOS_DHT12.h>      // depreciated DHT12 temperature and humidity sensor. 
