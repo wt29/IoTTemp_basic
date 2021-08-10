@@ -46,7 +46,10 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 //- Air Quality
 //#define AIRQUALITY    // enable SGP30 Shield 
                         // TVOC: (Total Volatile Organic Compound) concentration within a range of 0 to 60,000 parts per billion (ppb)
+                        // Note: Note that TVOC in ppm is  EU standard.  https://help.atmotube.com/faq/5-iaq-standards/
+                        // [] Action: Discuss - best way.  We can report as ppm but emon rounds to 2decimal places so we lose granularity...?
                         // eCO2: (equivalent calculated carbon-dioxide) concentration  400-60000 ppm
+                        //
                         // While this shield can be run in isolation its better to get the actual temp and humidity inputs
                         // for more accurate calculations - in our case we feed it data from our temp/humidity shield.
                         // https://www.wemos.cc/en/latest/d1_mini_shield/sgp30.html
@@ -320,7 +323,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   if (sgp30.IAQmeasure())
   {
     AQ_eCO2 = sgp30.eCO2;
-    AQ_TVOC = sgp30.TVOC;      
+    AQ_TVOC = (sgp30.TVOC); // [] Do we end up converting from ppb to ppm  ??
     Serial.print("TVOC "); Serial.print(AQ_TVOC); Serial.print(" ppb\t");
     Serial.print("eCO2 "); Serial.print(AQ_eCO2); Serial.println(" ppm");
     Serial.print("Raw H2 "); Serial.print(sgp30.rawH2); Serial.print(" \t");
@@ -545,13 +548,23 @@ void connectWiFi() {
 
 #ifdef WIFI
 void handleRoot() {
-  String response = "<h1>Welcome to Iot Temp </h1>";
+  String response = "<h1>Welcome to IoT Temp </h1>";
          response += "Temperature <b>" + String(TempC) + "C</b><br>";
          response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
-#ifdef BMP
+  #ifdef BMP
          response += "Air Pressure local <b>" + String(pressure) + " millibars</b><br>";
          response += "Air Pressure MSL <b>" + String(pressureMSL) + " millibars</b><br>";
-#endif
+  #endif
+  #ifdef BFDLOGGING
+         response += "Bushfire Rating <b>"+ String((1/Humidity)*TempC*brFactor) + " </b><br>";
+  #endif
+
+  #ifdef AIRQUALITY
+         response += "<br>";
+         response += "Air Quality eCO2 <b>"+ String(AQ_eCO2) + " ppm</b><br>";
+         response += "Air Quality TVOC <b>"+ String(AQ_TVOC) + " ppb</b><br>";
+  #endif
+
          response += "<br>";
          response += "Node Name <b>" + String(nodeName) + "</b><br>"; 
          response += "Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
