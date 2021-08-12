@@ -63,11 +63,11 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
                           // SHT30 is default and best bang for buck at present.
 
 //- Barometer
-//#define BMP             // Define to enable Barometric Air Pressure Shield Libraries and Logging 
+//#define BMP                 // Define to enable Barometric Air Pressure Shield Libraries and Logging 
 //#define LOCALALTITUDE 300;  // Required if using BMP.  Enter your local altitude in meters eg 300
                               // The reported pressure is corrected  by currentSensorReading + ((117/1000)*YourLocalAltitude).  
-                          // Notes Barometric Pressure readings need to be calibrated by 117 for every rise of 1000m above sea level.  
-                          // eg for 300m abobe sea level, the calc is 0.117 * 300 = 35
+                              // Notes Barometric Pressure readings need to be calibrated by 117 for every rise of 1000m above sea level.  
+                              // eg for 300m abobe sea level, the calc is 0.117 * 300 = 35
 
 //- Light meter
 //placeHolder for now
@@ -80,7 +80,7 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 //placeHolders for now
 
 //#define BFDLOGGING    // Define to enable logging BushFireFactor to the server. 
-                      // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
+                        // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 // --end of data.h
@@ -131,10 +131,9 @@ https://github.com/wemos
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
-// #include "data.h"             // Create this file from template above.  
-//                                  Update here if you changed the name.
-//                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "external.h"
+#include "data.h"             // Create this file from template above.  
+                              // Pete: so we don't need a push after burning a new cfg - in the "data.h" just shove "#include "hackdesk.h" (or whatever)
+                              // This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
 
 
 #ifndef HEADLESS                 // no screen
