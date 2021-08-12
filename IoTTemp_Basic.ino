@@ -134,7 +134,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "hackdesk.h"
+#include "external.h"
 
 
 #ifndef HEADLESS                 // no screen
