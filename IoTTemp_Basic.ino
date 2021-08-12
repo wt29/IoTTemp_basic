@@ -94,7 +94,8 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.31            // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
+#define VERSION 1.32            // Temperature controlled Heading!
+                                // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
                                 // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
                                 // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
                                 // 1.28 Moved the Static IP options to the data.h. Sensor now defaults to SHT30
@@ -133,7 +134,7 @@ https://github.com/wemos
 // #include "data.h"             // Create this file from template above.  
 //                                  Update here if you changed the name.
 //                                  This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-#include "Outside.h"
+#include "hackdesk.h"
 
 
 #ifndef HEADLESS                 // no screen
@@ -354,7 +355,22 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   tft.fillScreen(ST7735_BLACK);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
-  tft.setTextColor(ST7735_ORANGE);   // Can't read the "Dark Blue"
+  if (TempC < 10 ) {
+    tft.setTextColor(ST7735_BLUE);   // Its chilly
+  }
+  else if (TempC < 18) {
+    tft.setTextColor(ST7735_GREEN);   // Still cold
+  }
+  else if (TempC < 26) {
+    tft.setTextColor(ST7735_YELLOW);   // Nice temps
+  }
+  else if (TempC < 33) {
+    tft.setTextColor(ST7735_ORANGE);   // Warming up
+  }
+    else {
+    tft.setTextColor(ST7735_RED);   // Hot
+  }
+  
   tft.println(" IoT Temp");
   //tft.println(""); //PB Needed an extra line on the screen
   tft.setTextColor(ST7735_WHITE);
