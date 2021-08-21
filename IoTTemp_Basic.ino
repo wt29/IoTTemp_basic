@@ -24,6 +24,8 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
 
+#define SENSORCOUNT  <how many sensors in your config>  // Should default to 2 - allows for BIG letters on the temp and humidity
+
 //Enable the following block to your data.h to set fixed IP addresses. Configure as required
 //#define STATIC_IP
 //IPAddress staticIP( 192,168,1,22 );
@@ -94,7 +96,8 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.33            // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
+#define VERSION 1.34            // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
+                                // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
                                 // 1.32 Temperature controlled Heading!
                                 // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
                                 // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
@@ -135,7 +138,9 @@ https://github.com/wemos
 #include "data.h"             // Create this file from template above.  
                               // Pete: so we don't need a push after burning a new cfg - in the "data.h" just shove "#include "hackdesk.h" (or whatever)
                               // This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
-
+#ifndef SENSORCOUNT
+ #define SENSORCOUNT     10   // That will assume more than just 2 sensors
+#endif
 
 #ifndef HEADLESS                 // no screen
  #include <Adafruit_GFX.h>       // Core graphics library
@@ -373,9 +378,16 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   }
   
   tft.println(" IoT Temp");
-  //tft.println(""); //PB Needed an extra line on the screen
   tft.setTextColor(ST7735_WHITE);
-  tft.print(" Tmp " );
+  if (SENSORCOUNT < 4 && !showIP) {
+    tft.println("");  //PB Needed an extra line on the screen
+    tft.setTextSize(3);
+    tft.print("T " );
+  }
+  else
+  {  
+  tft.print("Tmp " );
+  }
   tft.setTextColor(ST7735_GREEN);
 
   #ifdef CELSIUS
@@ -385,18 +397,30 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif
   
   tft.setTextColor(ST7735_WHITE);
-  tft.print(" R/H ");
+  if (SENSORCOUNT < 4 && !showIP ) {
+   tft.print("H ");
+  }   
+  else
+  {
+    tft.print("R/H ");
+  }
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
 
   #ifdef BMP
     tft.setTextColor(ST7735_WHITE);
+    if (SENSORCOUNT < 4 && !showIP ) {
+     tft.print("P ");
+    }   
+    else
+    {
     tft.print("mBar ");
+    }
     tft.setTextColor(ST7735_GREEN);
     int intMSL = pressureMSL;
     tft.println( intMSL );
   #endif    
-
+  tft.setTextSize(2);   // Enough of those oversized letters
   #ifdef AIRQUALITY
     if (showIP){
      tft.setTextSize(1); // Only needs to be small for one pass until we don't show WiFi details
