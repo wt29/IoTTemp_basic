@@ -147,6 +147,7 @@ const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 
+boolean showIP = true;    // Only show the WiFi/IP details on first run through.
 
 //Configuration and Shield Options
 
@@ -367,7 +368,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
     tft.setTextColor(ST7735_ORANGE);   // Warming up
   }
     else {
-    tft.setTextColor(ST7735_RED);   // Hot
+    tft.setTextColor(ST7735_RED);      // Hot
   }
   
   tft.println(" IoT Temp");
@@ -396,14 +397,16 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif    
 
   #ifdef AIRQUALITY
-    tft.setTextSize(1); //doesnt need to be as large as other key data.
+    if (showIP){
+     tft.setTextSize(1); // Only needs to be small for one pass until we don't show WiFi details
+    }
     tft.setTextColor(ST7735_WHITE);
-    tft.print("  eCO2 ");
+    tft.print("eCO2 ");
     tft.setTextColor(ST7735_GREEN);
     int inteCO2 = AQ_eCO2;
-    tft.print( inteCO2 );
+    tft.println( inteCO2 );
     tft.setTextColor(ST7735_WHITE);
-    tft.print("  TVOC ");
+    tft.print("TVOC ");
     tft.setTextColor(ST7735_GREEN);
     int intTVOC = AQ_TVOC;
     tft.println( intTVOC );
@@ -411,11 +414,13 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
     tft.setTextSize(2); //back to defaults
   #endif 
      
+  if (showIP){   // again - only show this in the first iteration
   tft.setTextSize(1);
   tft.setTextColor(ST7735_WHITE);
   tft.print(" Node:");
   tft.setTextColor(ST7735_GREEN);
   tft.println(nodeName);
+  }
 #endif
 
 #ifdef WIFI
@@ -434,6 +439,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   else
   {
     #ifndef HEADLESS
+    if (showIP) {
        tft.setTextColor(ST7735_WHITE);
        tft.print(" SSID:" );
        tft.setTextColor(ST7735_GREEN);
@@ -442,6 +448,8 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
        tft.print("   IP:" );
        tft.setTextColor(ST7735_GREEN);
        tft.println( WiFi.localIP() );
+       showIP = false;
+    }
     #endif
     Serial.printf("\n[Connecting to %s ... ", host, "\n");
       
@@ -491,10 +499,12 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
 
+/*  Taking this out - you can see the resp on the Serial connection if required.
 #ifndef HEADLESS
       tft.println();
       tft.println( resp );
 #endif
+*/
      }
     }
    }
