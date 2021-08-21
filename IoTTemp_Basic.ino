@@ -94,7 +94,8 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.32            // Temperature controlled Heading!
+#define VERSION 1.33            // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
+                                // 1.32 Temperature controlled Heading!
                                 // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
                                 // 1.30 Change to BMPaltitude to calibrate from defined LOCALALTITUDE in data.h              
                                 // 1.29 Add BMPaltitude to data.h.  Tweak to comments for consistency.  Expanded notes in template and cleaned up code a little more.
@@ -573,6 +574,7 @@ void connectWiFi() {
 
 #ifdef WIFI
 void handleRoot() {
+  String url = "<a href=http://" + String(host) + ">"+host+"</a></b><br>";
   String response = "<h1>Welcome to IoT Temp </h1>";
          response += "Temperature <b>" + String(TempC) + "C</b><br>";
          response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
@@ -591,6 +593,7 @@ void handleRoot() {
   #endif
 
          response += "<br>";
+         response += "Currently logging to " + url ;
          response += "Node Name <b>" + String(nodeName) + "</b><br>"; 
          response += "Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
          response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
