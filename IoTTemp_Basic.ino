@@ -132,6 +132,7 @@ https://github.com/wemos
   #include <WiFiUdp.h>
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
+  #include <ArduinoOTA.h>
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
@@ -270,6 +271,10 @@ server.onNotFound(handleNotFound);        // When a client requests an unknown U
 
 server.begin();                           // Actually start the server
 Serial.println("HTTP server started");
+
+ArduinoOTA.begin();                       // Remote updates
+ArduinoOTA.setHostname( nodeName );
+
 #endif
 }       // Setup
 
@@ -282,6 +287,7 @@ void loop() {
 
 #ifdef WIFI 
  server.handleClient();                    // Listen for HTTP requests from clients
+ ArduinoOTA.handle();
 #endif
 
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
