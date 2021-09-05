@@ -5,11 +5,16 @@ Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
 You will need a file "data.h" - copy the template below.
-if you have lots of these keep the individual configs in myDeviceName.h for easy reference to save remembering config and board versions.
-Occasionaly you may need to add an extra setting from the template below if you are enabling new features.
-e.g. create a "kitchen.h" and change the local code to just include kitchen.h?
 
-Also add that file.h or *.h to the .gitignore so you dont upload your wifi password to github!
+If you have lots of these keep the individual configs in myDeviceName.h for easy reference to save remembering config and board versions
+and edit data.h to use that file.  eg #include "Library.h"
+
+Also add that file.h or *.h to the .gitignore.
+This is done to ensure that wifi and server passwords dont get uploaded to github.
+
+When it first boots up it shows more information that is useful for any debugging. 
+Also accesible via a webserver either on its http://ipaddress or http://nodename.local
+
 
 -------------------------------------
 //template for data.h
@@ -24,8 +29,6 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
 
-#define SENSORCOUNT  <how many sensors in your config>  // Should default to 2 - allows for BIG letters on the temp and humidity
-
 //Enable the following block to your data.h to set fixed IP addresses. Configure as required
 //#define STATIC_IP
 //IPAddress staticIP( 192,168,1,22 );
@@ -37,19 +40,20 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 // **Configuration and Shield Options
 
 //#define CONNECTOR_100 // 100 series shield otherwise defaults to 1.1.0.  
-                      // Note that some shields show 1.1.0 but are really version 1.0.0.  
-                      // If your TFT stays "white" or is blank on bootup then you probably have a 1.0.0 regardless of branding.
+                        // Note that some shields show 1.1.0 but are really version 1.0.0.  
+                        // If your TFT stays "white" or is blank on bootup then you probably have a 1.0.0 regardless of branding.
 
 //#define HEADLESS      // Define if you don't have a display. Defaults to true
 
 
 // **Sensors
+#define SENSORCOUNT  <how many sensors in your config>  // Normally 2 (temp+humidity).  This allows for BIG letters on the temp and humidity
 
 //- Air Quality
 //#define AIRQUALITY    // enable SGP30 Shield 
                         // TVOC: (Total Volatile Organic Compound) concentration within a range of 0 to 60,000 parts per billion (ppb)
                         // Note: Note that TVOC in ppm is  EU standard.  https://help.atmotube.com/faq/5-iaq-standards/
-                        // [] Action: Discuss - best way.  We can report as ppm but emon rounds to 2decimal places so we lose granularity...?
+                        // [.] Action: Discuss - best way.  We can report as ppm but emon rounds to 2decimal places so we lose granularity...?
                         // eCO2: (equivalent calculated carbon-dioxide) concentration  400-60000 ppm
                         //
                         // While this shield can be run in isolation its better to get the actual temp and humidity inputs
@@ -89,14 +93,16 @@ Also add that file.h or *.h to the .gitignore so you dont upload your wifi passw
 
 -------------------------------------
 
-Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino
+Trying to do this in both Arduino IDE and PlatformIO is too hard - Stick to Arduino IDE
 
 Additional Libraries for DHT12 and SHT30 etc.  Download and save to user documents
 They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-#define VERSION 1.34            // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
+
+#define VERSION 1.35            // 1.35 Very minor - cleanup comments and some old logic.
+                                // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
                                 // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
                                 // 1.32 Temperature controlled Heading!
                                 // 1.31 Enable SGP30 Shield V1.0.0 AIR QUALITY SENSOR
@@ -110,7 +116,7 @@ https://github.com/wemos
                                 // 1.23 Bushfire danger feeds - now defaults to 44
                                 // edit bushFireRatingFactor to taste
 
-#warning Setup your data.h.  Refer to template in code.
+#warning Setup your data.h.  Refer to the provided template at top of this file.
 
 //debug mode
 #define DEBUG
@@ -140,7 +146,7 @@ https://github.com/wemos
                               // Pete: so we don't need a push after burning a new cfg - in the "data.h" just shove "#include "hackdesk.h" (or whatever)
                               // This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
 #ifndef SENSORCOUNT
- #define SENSORCOUNT     10   // That will assume more than just 2 sensors
+ #define SENSORCOUNT     10   // That will assume more than just 2 sensors.  Less sensors = bigger font size on TFT display
 #endif
 
 #ifndef HEADLESS                 // no screen
@@ -154,7 +160,7 @@ const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 
-boolean showIP = true;    // Only show the WiFi/IP details on first run through.
+boolean showIP = true;    // Only show the WiFi/IP details on first run through after bootup (troubleshooting)
 
 //Configuration and Shield Options
 
@@ -177,8 +183,8 @@ boolean showIP = true;    // Only show the WiFi/IP details on first run through.
 #ifdef AIRQUALITY //Air Quality Shield
   #include "Adafruit_SGP30.h"
   Adafruit_SGP30 sgp30;         //SPG3030 Air quality instance
-  float AQ_TVOC;    //  ppb Total Volatile Organic Components
-  float AQ_eCO2;    //  ppm estimated concentration of carbon dioxide calculated from known TVOC concentration
+  float AQ_TVOC;                //  ppb Total Volatile Organic Components
+  float AQ_eCO2;                //  ppm estimated concentration of carbon dioxide calculated from known TVOC concentration
 #endif
 
 #ifdef BMP    // Barometric Pressure shield
@@ -207,9 +213,8 @@ boolean showIP = true;    // Only show the WiFi/IP details on first run through.
 //wind angle logging placeholder
 
 //Do we want to log BushFire Danger Stuff? 
-#ifndef BFDLOGGING      // All defines should be UC
+#ifdef BFDLOGGING     
   //nothing needed for now
-#else
   //logging so we need to setup BRFactor etc.
   //BushFire Rating Factor (amount to multiply the result by for logging purposes)
   #ifndef BRFACTOR
@@ -256,7 +261,7 @@ void setup()
 #ifndef HEADLESS
   tft.initR(INITR_144GREENTAB);
   tft.setTextWrap(false);     // Allow text to run off right edge
-  tft.setRotation( 1 );     // Portrait mode
+  tft.setRotation( 1 );       // Portrait mode
 #endif
 
 #ifdef WIFI
