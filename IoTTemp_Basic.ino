@@ -279,6 +279,7 @@ void setup()
 #ifdef WIFI
 
 timeClient.begin();
+timeClient.forceUpdate();
 
 if (MDNS.begin( nodeName )) {              // Start the mDNS responder for <nodeName>.local
     Serial.println("mDNS responder started");
