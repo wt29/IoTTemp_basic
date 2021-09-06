@@ -100,12 +100,9 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
-<<<<<<< Updated upstream
 
-#define VERSION 1.35            // 1.35 Very minor - cleanup comments and some old logic.
-=======
-#define VERSION 1.35            // Internet time, uptime and Max/Min temps during run 
->>>>>>> Stashed changes
+#define VERSION 1.37            // 1.37 Internet time, uptime and Max/Min temps during run 
+                                // 1.35 Very minor - cleanup comments and some old logic.
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
                                 // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
                                 // 1.32 Temperature controlled Heading!
@@ -242,9 +239,8 @@ String timeOfMaxTemp;
 
   WiFiUDP ntpUDP;
   NTPClient timeClient(ntpUDP, "192.168.1.21", utcOffsetInSeconds);
-  String startTime;
-  unsigned long startAbsoluteTime;    // How long have we been running for?
-
+  unsigned long startEpochTime = 50000;    // How long have we been running for?
+  String startFormattedTime;               // For display purposes
 #endif
 
 int waitForWiFi = 20000 ;         // How long to wait for the WiFi to connect - 10 Seconds should be enough 
@@ -293,12 +289,6 @@ Serial.println("HTTP server started");
 ArduinoOTA.begin();                       // Remote updates
 ArduinoOTA.setHostname( nodeName );
 
-timeClient.update();
-startTime = timeClient.getFormattedTime();
-delay( 10000 );  // allow the client to start on the older WEMOS, this seems to be slow
-startTime = timeClient.getFormattedTime();
-startAbsoluteTime = timeClient.getEpochTime();
-
 #endif
 }       // Setup
 
@@ -310,6 +300,18 @@ void loop() {
 #endif
 
 if ( millis() > lastRun + poll ) {        // only want this happening every so often - see Poll value
+
+// Attempt to set the start time correctly on "non pro" D1
+// It seems to keep returning ~10000 (10K )which is the timezone offset until inited correctly 
+// The Wemos D1 seem slow to update this it may take a couple of loops to sync correctly. The D1 Pro seems fine.
+
+if ( startEpochTime < 500000 ) {             
+  timeClient.update();                     
+  unsigned long epochTime = timeClient.getEpochTime();
+  Serial.println( epochTime );
+  startEpochTime = epochTime;
+  startFormattedTime = timeClient.getFormattedTime();
+}
 
 #ifndef HASDHT12
   Serial.println("Reading SHT30 Temperature/Humidity Shield");
@@ -655,17 +657,17 @@ void handleRoot() {
   #endif
 
          // response += "<br>";
-         response += "<tr><td>Device started at </td><td><b>" + startTime + "</b></td></tr>";
+         response += "<tr><td>Device started at </td><td><b>" + startFormattedTime + "</b></td></tr>";
          response += "<tr><td>Current time </td><td><b>" + getInternetTime() + "</b></td></tr>";
  
-         int runSecs = timeClient.getEpochTime() - startAbsoluteTime;
+         int runSecs = timeClient.getEpochTime() - startEpochTime;
          Serial.println( timeClient.getEpochTime() );
-         Serial.println( startAbsoluteTime );
+         Serial.println( startEpochTime );
          Serial.println( runSecs );
          int upDays = abs( runSecs / 86400 );
-         int upHours = abs( runSecs / 3600 );
-         int upMins = abs( ( runSecs - ( upHours*3600 ) ) / 60 ) ;
-         int upSecs = ( runSecs - ( upMins*60 ) - (upHours*3600));
+         int upHours = abs( runSecs - ( upDays * 86400 ) ) / 3600;
+         int upMins = abs( ( runSecs - (upDays * 86400) - ( upHours*3600 ) ) / 60 ) ;
+         int upSecs = abs( runSecs - (upDays * 86400) - ( upHours*3600 ) - ( upMins*60 ) );
          String upTime = String(upDays) + "d " + String( upHours ) + "h " + String(upMins) + "m " +String(upSecs) + "s";
          response += "<tr><td>Uptime  </td><td><b>" + upTime + "</b></td></tr>";
 
