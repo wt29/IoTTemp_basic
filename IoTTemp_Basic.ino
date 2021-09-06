@@ -29,6 +29,9 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
 
+#define TIMESERVER "0.au.pool.ntp.org";              // Pick a time server
+#define TZOFFSET 36000;                              // Add your timezone offset in hours*3600 i.e. seconds
+
 //Enable the following block to your data.h to set fixed IP addresses. Configure as required
 //#define STATIC_IP
 //IPAddress staticIP( 192,168,1,22 );
@@ -227,6 +230,8 @@ float maxTemp = -100.0 ;  // Force it to start
 float minTemp = 100.0;  // force it to start
 String timeOfMinTemp;
 String timeOfMaxTemp;
+unsigned long maxTempEpoch;
+unsigned long minTempEpoch;
 
 #ifdef WIFI
   WiFiClient client;              // Instance of WiFi Client
@@ -234,11 +239,12 @@ String timeOfMaxTemp;
   void handleRoot();              // function prototypes for HTTP handlers
   void handleNotFound();
 
-  const long utcOffsetInSeconds = 36000;       // Sydney is 10 hours ahead
+  const long utcOffsetInSeconds = TZOFFSET;       // Sydney is 10 hours ahead
+  const char* timeServer = TIMESERVER;
   char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
   WiFiUDP ntpUDP;
-  NTPClient timeClient(ntpUDP, "192.168.1.21", utcOffsetInSeconds);
+  NTPClient timeClient(ntpUDP, timeServer, utcOffsetInSeconds );
   unsigned long startEpochTime = 50000;    // How long have we been running for?
   String startFormattedTime;               // For display purposes
 #endif
@@ -339,16 +345,19 @@ if ( startEpochTime < 500000 ) {
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
 #endif  
- if (TempC > maxTemp ) {
+ if ( startEpochTime > 1630929506 ) {   // no point recording this until time is useful
+  if (TempC > maxTemp ) {
     maxTemp = TempC;
     timeOfMaxTemp = getInternetTime();  // Record the time it happened
-  }
+    maxTempEpoch = timeClient.getEpochTime() ;
+   }
 
- if (TempC < minTemp ) {
-    minTemp = TempC;
-    timeOfMinTemp = getInternetTime();  // Record the time it happened
+   if (TempC < minTemp ) {
+     minTemp = TempC;
+     timeOfMinTemp = getInternetTime();  // Record the time it happened
+     minTempEpoch = timeClient.getEpochTime() ;
+   }
   }
-
   Serial.println();
   Serial.print("Temperature in Celsius : ");
   Serial.println(TempC);
@@ -639,8 +648,8 @@ void handleRoot() {
          response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
          response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
          response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
-         response += "<tr><td>Maximum Temperature recorded </td><td><b>" + String(maxTemp) + "</b> at <b>" + timeOfMaxTemp + "</b></td></tr>";
-         response += "<tr><td>Minimim Temperature recorder </td><td><b>" + String(minTemp) + "</b> at <b>" + timeOfMinTemp + "</b></td></tr>";
+         response += "<tr><td>Maximum Temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimim Temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + "</b></td></tr>";
 
   #ifdef BMP
          response += "<tr><td>Air Pressure local </td><td><b>" + String(pressure) + " millibars</b></td></tr>";
@@ -657,13 +666,17 @@ void handleRoot() {
   #endif
 
          // response += "<br>";
-         response += "<tr><td>Device started at </td><td><b>" + startFormattedTime + "</b></td></tr>";
-         response += "<tr><td>Current time </td><td><b>" + getInternetTime() + "</b></td></tr>";
+         response += "<tr><td>Device started </td><td><b>" + fullDate( startEpochTime ) + "</b></td></tr>";
+         response += "<tr><td>Current time </td><td><b>" + fullDate( timeClient.getEpochTime()) + "</b></td></tr>";
  
          int runSecs = timeClient.getEpochTime() - startEpochTime;
+/*
          Serial.println( timeClient.getEpochTime() );
          Serial.println( startEpochTime );
-         Serial.println( runSecs );
+         Serial.println( runSecs );        
+         Serial.print( "Full date: " );
+         Serial.println( fullDate( startEpochTime ));
+*/         
          int upDays = abs( runSecs / 86400 );
          int upHours = abs( runSecs - ( upDays * 86400 ) ) / 3600;
          int upMins = abs( ( runSecs - (upDays * 86400) - ( upHours*3600 ) ) / 60 ) ;
@@ -691,4 +704,126 @@ String getInternetTime() {
   Serial.print( "Formatted Time" );
   Serial.println( timeClient.getFormattedTime() );
   return String( timeClient.getFormattedTime() );
+}
+
+String fullDate ( unsigned long epoch ){
+
+static unsigned char month_days[12]={31,28,31,30,31,30,31,31,30,31,30,31};
+static unsigned char week_days[7] = {4,5,6,0,1,2,3}; //Thu=4, Fri=5, Sat=6, Sun=0, Mon=1, Tue=2, Wed=3
+
+unsigned char ntp_hour, ntp_minute, ntp_second, ntp_week_day, ntp_date, ntp_month, leap_days, leap_year_ind ;
+String dow, sMonth;
+unsigned short temp_days;
+
+unsigned int ntp_year, days_since_epoch, day_of_year; 
+
+  //---------------------------- Input and Calculations -------------------------------------
+
+    leap_days=0; 
+    leap_year_ind=0;
+
+//    printf("-------------------------------------------\n");    
+//    printf("Enter EPOCH => ");
+//    scanf ("%d",&epoch);
+    
+     // Add or substract time zone here. 
+     // epoch+=TZOFFSET ; //GMT +5:30 = +19800 seconds 
+    
+      ntp_second = epoch%60;
+      epoch /= 60;
+      ntp_minute = epoch%60;
+      epoch /= 60;
+      ntp_hour  = epoch%24;
+      epoch /= 24;
+        
+      days_since_epoch = epoch;      //number of days since epoch
+      ntp_week_day = week_days[days_since_epoch%7];  //Calculating WeekDay
+      
+      ntp_year = 1970+(days_since_epoch/365); // ball parking year, may not be accurate!
+ 
+      int i;
+      for (i=1972; i<ntp_year; i+=4)      // Calculating number of leap days since epoch/1970
+         if(((i%4==0) && (i%100!=0)) || (i%400==0)) leap_days++;
+            
+      ntp_year = 1970+((days_since_epoch - leap_days)/365); // Calculating accurate current year by (days_since_epoch - extra leap days)
+      day_of_year = ((days_since_epoch - leap_days)%365)+1;
+  
+   
+      if(((ntp_year%4==0) && (ntp_year%100!=0)) || (ntp_year%400==0))  
+       {
+         month_days[1]=29;     //February = 29 days for leap years
+         leap_year_ind = 1;    //if current year is leap, set indicator to 1 
+        }
+            else month_days[1]=28; //February = 28 days for non-leap years 
+   
+            temp_days=0;
+   
+    for (ntp_month=0 ; ntp_month <= 11 ; ntp_month++) //calculating current Month
+       {
+           if (day_of_year <= temp_days) break; 
+           temp_days = temp_days + month_days[ntp_month];
+        }
+    
+    temp_days = temp_days - month_days[ntp_month-1]; //calculating current Date
+    ntp_date = day_of_year - temp_days;
+    
+   
+    switch(ntp_week_day) {
+                         
+                         case 0: dow = "Sunday";
+                                 break;
+                         case 1: dow = "Monday" ;
+                                 break;
+                         case 2: dow = "Tuesday";
+                                 break;
+                         case 3: dow = "Wednesday";
+                                 break;
+                         case 4: dow = "Thursday";
+                                 break;
+                         case 5: dow = "Friday";
+                                 break;
+                         case 6: dow = "Saturday";
+                                 break;
+                         default: break;        
+                         }
+  
+  switch(ntp_month) {
+                         
+                         case 1: sMonth = "January";
+                                 break;
+                         case 2: sMonth = "February";
+                                 break;
+                         case 3: sMonth = "March";
+                                 break;
+                         case 4: sMonth = "April";
+                                 break;
+                         case 5: sMonth = "May";
+                                 break;
+                         case 6: sMonth = "June";
+                                 break;
+                         case 7: sMonth = "July";
+                                 break;
+                         case 8: sMonth = "August";
+                                 break;
+                         case 9: sMonth = "September";
+                                 break;
+                         case 10: sMonth = "October";
+                                 break;
+                         case 11: sMonth = "November";
+                                 break;
+                         case 12: sMonth = "December";       
+                         default: break;        
+                         }
+/*  
+  printf(" %2d",ntp_date);
+  printf(", %d\n",ntp_year);
+  printf("TIME = %2d : %2d : %2d\n\n", ntp_hour,ntp_minute,ntp_second)  ;
+  printf("Days since Epoch: %d\n",days_since_epoch);
+  printf("Number of Leap days since EPOCH: %d\n",leap_days);
+  printf("Day of year = %d\n", day_of_year);
+  printf("Is Year Leap? %d\n",leap_year_ind);
+  printf("===============================================\n");
+  printf(" Press e to EXIT, or any other key to repeat...\n\n");
+*/
+  return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second );
 }
