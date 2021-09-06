@@ -100,8 +100,12 @@ They show a warning on compile but are fine.
 https://github.com/wemos
 
 */
+<<<<<<< Updated upstream
 
 #define VERSION 1.35            // 1.35 Very minor - cleanup comments and some old logic.
+=======
+#define VERSION 1.35            // Internet time, uptime and Max/Min temps during run 
+>>>>>>> Stashed changes
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
                                 // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
                                 // 1.32 Temperature controlled Heading!
@@ -118,27 +122,17 @@ https://github.com/wemos
 
 #warning Setup your data.h.  Refer to the provided template at top of this file.
 
-//debug mode
-#define DEBUG
-// If we define then DEBUG_LOG will log a string, otherwise
-// it will be ignored as a comment.
-#ifdef DEBUG
-#  define DEBUG_LOG(x) Serial.print(x)
-#else
-#  define DEBUG_LOG(x)
-#endif
-
-
 #define WIFI
 
 //Node and Network Setup
 #ifdef WIFI
   #include <ESP8266WiFi.h>
   #include <WiFiClient.h>
-  #include <WiFiUdp.h>
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
   #include <ArduinoOTA.h>
+  #include <NTPClient.h>
+  #include <WiFiUdp.h>
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
@@ -159,6 +153,9 @@ const char* ssid = LOCALSSID;
 const char* password = PASSWORD;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
+#ifdef SENSORCOUNT
+ const int numberOfSensors = SENSORCOUNT;
+#endif
 
 boolean showIP = true;    // Only show the WiFi/IP details on first run through after bootup (troubleshooting)
 
@@ -229,12 +226,25 @@ boolean showIP = true;    // Only show the WiFi/IP details on first run through 
 float TempC;
 float TempF;
 float Humidity;
+float maxTemp = -100.0 ;  // Force it to start
+float minTemp = 100.0;  // force it to start
+String timeOfMinTemp;
+String timeOfMaxTemp;
 
 #ifdef WIFI
   WiFiClient client;              // Instance of WiFi Client
   ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
   void handleRoot();              // function prototypes for HTTP handlers
   void handleNotFound();
+
+  const long utcOffsetInSeconds = 36000;       // Sydney is 10 hours ahead
+  char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+  WiFiUDP ntpUDP;
+  NTPClient timeClient(ntpUDP, "192.168.1.21", utcOffsetInSeconds);
+  String startTime;
+  unsigned long startAbsoluteTime;    // How long have we been running for?
+
 #endif
 
 int waitForWiFi = 20000 ;         // How long to wait for the WiFi to connect - 10 Seconds should be enough 
@@ -265,6 +275,9 @@ void setup()
 #endif
 
 #ifdef WIFI
+
+timeClient.begin();
+
 if (MDNS.begin( nodeName )) {              // Start the mDNS responder for <nodeName>.local
     Serial.println("mDNS responder started");
   } else {
@@ -280,15 +293,16 @@ Serial.println("HTTP server started");
 ArduinoOTA.begin();                       // Remote updates
 ArduinoOTA.setHostname( nodeName );
 
+timeClient.update();
+startTime = timeClient.getFormattedTime();
+delay( 10000 );  // allow the client to start on the older WEMOS, this seems to be slow
+startTime = timeClient.getFormattedTime();
+startAbsoluteTime = timeClient.getEpochTime();
+
 #endif
 }       // Setup
 
 void loop() {
-
- if ( millis() > 14400000) {   // Reboot every 4 hours - I have crappy internet. You may not need this
-      Serial.println("Rebooting");
-      ESP.restart();           // Kick it over and try from the beginning
-  }
 
 #ifdef WIFI 
  server.handleClient();                    // Listen for HTTP requests from clients
@@ -323,6 +337,15 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   TempF = dht12.fTemp;
   Humidity = dht12.humidity;
 #endif  
+ if (TempC > maxTemp ) {
+    maxTemp = TempC;
+    timeOfMaxTemp = getInternetTime();  // Record the time it happened
+  }
+
+ if (TempC < minTemp ) {
+    minTemp = TempC;
+    timeOfMinTemp = getInternetTime();  // Record the time it happened
+  }
 
   Serial.println();
   Serial.print("Temperature in Celsius : ");
@@ -390,7 +413,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   
   tft.println(" IoT Temp");
   tft.setTextColor(ST7735_WHITE);
-  if (SENSORCOUNT < 4 && !showIP) {
+  if (numberOfSensors < 4 && !showIP) {
     tft.println("");  //PB Needed an extra line on the screen
     tft.setTextSize(3);
     tft.print("T " );
@@ -408,7 +431,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
   #endif
   
   tft.setTextColor(ST7735_WHITE);
-  if (SENSORCOUNT < 4 && !showIP ) {
+  if ((numberOfSensors < 4) && !showIP ) {
    tft.print("H ");
   }   
   else
@@ -420,7 +443,7 @@ if ( millis() > lastRun + poll ) {        // only want this happening every so o
 
   #ifdef BMP
     tft.setTextColor(ST7735_WHITE);
-    if (SENSORCOUNT < 4 && !showIP ) {
+    if ((SENSORCOUNT < 4) && !showIP ) {
      tft.print("P ");
     }   
     else
@@ -610,29 +633,47 @@ void connectWiFi() {
 #ifdef WIFI
 void handleRoot() {
   String url = "<a href=http://" + String(host) + ">"+host+"</a></b><br>";
-  String response = "<h1>Welcome to IoT Temp </h1>";
-         response += "Temperature <b>" + String(TempC) + "C</b><br>";
-         response += "Humidity <b>" + String(Humidity) + " %RH</b><br>";
+  String response = "<h1>Welcome to IoT Temp on node " + String(nodeName) + "</h1>";
+         response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
+         response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
+         response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
+         response += "<tr><td>Maximum Temperature recorded </td><td><b>" + String(maxTemp) + "</b> at <b>" + timeOfMaxTemp + "</b></td></tr>";
+         response += "<tr><td>Minimim Temperature recorder </td><td><b>" + String(minTemp) + "</b> at <b>" + timeOfMinTemp + "</b></td></tr>";
+
   #ifdef BMP
-         response += "Air Pressure local <b>" + String(pressure) + " millibars</b><br>";
-         response += "Air Pressure MSL <b>" + String(pressureMSL) + " millibars</b><br>";
+         response += "<tr><td>Air Pressure local </td><td><b>" + String(pressure) + " millibars</b></td></tr>";
+         response += "<tr><td>Air Pressure MSL </td><td><b>" + String(pressureMSL) + " millibars</b></td></tr>";
   #endif
   #ifdef BFDLOGGING
-         response += "Bushfire Rating <b>"+ String((1/Humidity)*TempC*brFactor) + " </b><br>";
+         response += "<tr><td>Bushfire Rating </td><td><b>"+ String((1/Humidity)*TempC*brFactor) + " </b></td></tr>";
   #endif
 
   #ifdef AIRQUALITY
-         response += "<br>";
-         response += "Air Quality eCO2 <b>"+ String(AQ_eCO2) + " ppm</b><br>";
-         response += "Air Quality TVOC <b>"+ String(AQ_TVOC) + " ppb</b><br>";
+         // response += "<br>";
+         response += "<tr><td>Air Quality eCO2 </td><td><b>"+ String(AQ_eCO2) + " ppm</b></td></tr>";
+         response += "<tr><td>Air Quality TVOC </td><td><b>"+ String(AQ_TVOC) + " ppb</b></td></tr>";
   #endif
 
-         response += "<br>";
-         response += "Currently logging to " + url ;
-         response += "Node Name <b>" + String(nodeName) + "</b><br>"; 
-         response += "Local IP is: <b>" + WiFi.localIP().toString() + "</b><br>";
-         response += "Free Heap Space <b>" + String(ESP.getFreeHeap()) + " bytes</b><br>";
-         response += "Software Version <b>" + String(VERSION) + "</b>";
+         // response += "<br>";
+         response += "<tr><td>Device started at </td><td><b>" + startTime + "</b></td></tr>";
+         response += "<tr><td>Current time </td><td><b>" + getInternetTime() + "</b></td></tr>";
+ 
+         int runSecs = timeClient.getEpochTime() - startAbsoluteTime;
+         Serial.println( timeClient.getEpochTime() );
+         Serial.println( startAbsoluteTime );
+         Serial.println( runSecs );
+         int upDays = abs( runSecs / 86400 );
+         int upHours = abs( runSecs / 3600 );
+         int upMins = abs( ( runSecs - ( upHours*3600 ) ) / 60 ) ;
+         int upSecs = ( runSecs - ( upMins*60 ) - (upHours*3600));
+         String upTime = String(upDays) + "d " + String( upHours ) + "h " + String(upMins) + "m " +String(upSecs) + "s";
+         response += "<tr><td>Uptime  </td><td><b>" + upTime + "</b></td></tr>";
+
+         response += "<tr><td>Currently logging to </td><td>" + url + "</td></tr>";
+         response += "<tr><td>Local IP is: </td><td><b>" + WiFi.localIP().toString() + "</b></td></tr>";
+         response += "<tr><td>Free Heap Space </td><td><b>" + String(ESP.getFreeHeap()) + " bytes</b></td></tr>";
+         response += "<tr><td>Software Version </td><td><b>" + String(VERSION) + "</b></td></tr>";
+         response += "</table>";
          
   server.send(200, "text/html", response );   // Send HTTP status 200 (Ok) and send some text to the browser/client
 }
@@ -641,3 +682,11 @@ void handleNotFound(){
   server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
 #endif
+
+String getInternetTime() {
+  timeClient.update();
+  delay(200);
+  Serial.print( "Formatted Time" );
+  Serial.println( timeClient.getFormattedTime() );
+  return String( timeClient.getFormattedTime() );
+}
