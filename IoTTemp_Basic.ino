@@ -104,7 +104,7 @@ https://github.com/wemos
 
 */
 
-#define VERSION 1.37            // 1.37 Internet time, uptime and Max/Min temps during run 
+#define VERSION 1.37            // 1.37 Internet time, uptime and Max/Min temps during run, remote reboot (just because I can) 
                                 // 1.35 Very minor - cleanup comments and some old logic.
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
                                 // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
@@ -288,6 +288,7 @@ if (MDNS.begin( nodeName )) {              // Start the mDNS responder for <node
 
 server.on("/", handleRoot);               // Call the 'handleRoot' function when a client requests URI "/"
 server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
+server.on("/reboot",rebootDevice);        // Kick over remotely
 
 server.begin();                           // Actually start the server
 Serial.println("HTTP server started");
@@ -506,7 +507,7 @@ if ( startEpochTime < 500000 ) {
   }
   else
   {
-    #ifndef HEADLESS
+   #ifndef HEADLESS
     if (showIP) {
        tft.setTextColor(ST7735_WHITE);
        tft.print(" SSID:" );
@@ -567,24 +568,16 @@ if ( startEpochTime < 500000 ) {
       resp = client.readStringUntil('\n');  // See what the host responds with.
       Serial.println( resp );
 
-/*  Taking this out - you can see the resp on the Serial connection if required.
-#ifndef HEADLESS
-      tft.println();
-      tft.println( resp );
-#endif
-*/
      }
     }
    }
    else
    {
     Serial.println("Connection failed!]");
- #ifndef HEADLESS
     tft.setTextColor(ST7735_RED);
     tft.print( " " );  
     tft.println( host );
     tft.print(" Connection failed");
- #endif
    }
 #endif  // def WIFI
   }  
@@ -595,8 +588,8 @@ if ( startEpochTime < 500000 ) {
 
 }     // Loop
 
-#ifndef HEADLESS
 void tftPrint ( char* value, bool newLine, int color ) {
+#ifndef HEADLESS   // just don't do anything
   tft.setTextColor( color );
   if (newLine) {
     tft.println( value );
@@ -605,8 +598,8 @@ void tftPrint ( char* value, bool newLine, int color ) {
   {
   tft.print( value);
   }
-}
 #endif
+}
 
 void connectWiFi() {
 
@@ -629,25 +622,23 @@ void connectWiFi() {
     Serial.print(".");
   }
 
-#ifndef HEADLESS
   tft.print("");
   Serial.println("");
   Serial.print("IP Address: ");
   Serial.println( WiFi.localIP());
   Serial.printf("Connection status: %d\n", WiFi.status());
-#endif
 
 }
 
 #ifdef WIFI
 void handleRoot() {
   String url = "<a href=http://" + String(host) + ">"+host+"</a></b><br>";
-  String response = "<h1>Welcome to IoT Temp on node " + String(nodeName) + "</h1>";
+  String response = "<h2>Welcome to IoT Temp on node " + String(nodeName) + "</h2>";
          response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
          response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
          response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
-         response += "<tr><td>Maximum Temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
-         response += "<tr><td>Minimim Temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimum temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + "</b></td></tr>";
 
   #ifdef BMP
          response += "<tr><td>Air Pressure local </td><td><b>" + String(pressure) + " millibars</b></td></tr>";
@@ -668,13 +659,6 @@ void handleRoot() {
          response += "<tr><td>Current time </td><td><b>" + fullDate( timeClient.getEpochTime()) + "</b></td></tr>";
  
          int runSecs = timeClient.getEpochTime() - startEpochTime;
-/*
-         Serial.println( timeClient.getEpochTime() );
-         Serial.println( startEpochTime );
-         Serial.println( runSecs );        
-         Serial.print( "Full date: " );
-         Serial.println( fullDate( startEpochTime ));
-*/         
          int upDays = abs( runSecs / 86400 );
          int upHours = abs( runSecs - ( upDays * 86400 ) ) / 3600;
          int upMins = abs( ( runSecs - (upDays * 86400) - ( upHours*3600 ) ) / 60 ) ;
@@ -695,6 +679,12 @@ void handleNotFound(){
   server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
 }
 #endif
+
+void rebootDevice(){
+  server.send(200, "text/html", "<h1>Rebooting " + String(nodeName) + " in 5 seconds</h1>"); // Warn em
+  delay( 5000 );
+  ESP.restart();
+}
 
 String getInternetTime() {
   timeClient.update();
