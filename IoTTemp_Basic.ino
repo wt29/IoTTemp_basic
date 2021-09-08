@@ -228,8 +228,7 @@ float TempF;
 float Humidity;
 float maxTemp = -100.0 ;  // Force it to start
 float minTemp = 100.0;  // force it to start
-String timeOfMinTemp;
-String timeOfMaxTemp;
+
 unsigned long maxTempEpoch;
 unsigned long minTempEpoch;
 
@@ -349,13 +348,11 @@ if ( startEpochTime < 500000 ) {
  if ( startEpochTime > 1630929506 ) {   // no point recording this until time is useful
   if (TempC > maxTemp ) {
     maxTemp = TempC;
-    timeOfMaxTemp = getInternetTime();  // Record the time it happened
     maxTempEpoch = timeClient.getEpochTime() ;
    }
 
    if (TempC < minTemp ) {
      minTemp = TempC;
-     timeOfMinTemp = getInternetTime();  // Record the time it happened
      minTempEpoch = timeClient.getEpochTime() ;
    }
   }
@@ -718,46 +715,37 @@ unsigned short temp_days;
 
 unsigned int ntp_year, days_since_epoch, day_of_year; 
 
-  //---------------------------- Input and Calculations -------------------------------------
-
     leap_days=0; 
     leap_year_ind=0;
-
-//    printf("-------------------------------------------\n");    
-//    printf("Enter EPOCH => ");
-//    scanf ("%d",&epoch);
     
-     // Add or substract time zone here. 
-     // epoch+=TZOFFSET ; //GMT +5:30 = +19800 seconds 
-    
-      ntp_second = epoch%60;
-      epoch /= 60;
-      ntp_minute = epoch%60;
-      epoch /= 60;
-      ntp_hour  = epoch%24;
-      epoch /= 24;
+    ntp_second = epoch%60;
+    epoch /= 60;
+    ntp_minute = epoch%60;
+    epoch /= 60;
+    ntp_hour  = epoch%24;
+    epoch /= 24;
         
-      days_since_epoch = epoch;      //number of days since epoch
-      ntp_week_day = week_days[days_since_epoch%7];  //Calculating WeekDay
-      
-      ntp_year = 1970+(days_since_epoch/365); // ball parking year, may not be accurate!
+    days_since_epoch = epoch;      //number of days since epoch
+    ntp_week_day = week_days[days_since_epoch%7];  //Calculating WeekDay
+     
+    ntp_year = 1970+(days_since_epoch/365); // ball parking year, may not be accurate!
  
-      int i;
-      for (i=1972; i<ntp_year; i+=4)      // Calculating number of leap days since epoch/1970
-         if(((i%4==0) && (i%100!=0)) || (i%400==0)) leap_days++;
+    int i;
+    for (i=1972; i<ntp_year; i+=4)      // Calculating number of leap days since epoch/1970
+       if(((i%4==0) && (i%100!=0)) || (i%400==0)) leap_days++;
             
-      ntp_year = 1970+((days_since_epoch - leap_days)/365); // Calculating accurate current year by (days_since_epoch - extra leap days)
-      day_of_year = ((days_since_epoch - leap_days)%365)+1;
+    ntp_year = 1970+((days_since_epoch - leap_days)/365); // Calculating accurate current year by (days_since_epoch - extra leap days)
+    day_of_year = ((days_since_epoch - leap_days)%365)+1;
   
    
-      if(((ntp_year%4==0) && (ntp_year%100!=0)) || (ntp_year%400==0))  
-       {
-         month_days[1]=29;     //February = 29 days for leap years
-         leap_year_ind = 1;    //if current year is leap, set indicator to 1 
-        }
-            else month_days[1]=28; //February = 28 days for non-leap years 
-   
-            temp_days=0;
+    if(((ntp_year%4==0) && (ntp_year%100!=0)) || (ntp_year%400==0))  
+     {
+        month_days[1]=29;     //February = 29 days for leap years
+        leap_year_ind = 1;    //if current year is leap, set indicator to 1 
+       }
+        else month_days[1]=28; //February = 28 days for non-leap years 
+
+         temp_days=0;
    
     for (ntp_month=0 ; ntp_month <= 11 ; ntp_month++) //calculating current Month
        {
@@ -823,8 +811,6 @@ unsigned int ntp_year, days_since_epoch, day_of_year;
   printf("Number of Leap days since EPOCH: %d\n",leap_days);
   printf("Day of year = %d\n", day_of_year);
   printf("Is Year Leap? %d\n",leap_year_ind);
-  printf("===============================================\n");
-  printf(" Press e to EXIT, or any other key to repeat...\n\n");
 */
   return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second );
 }
