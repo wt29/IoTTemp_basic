@@ -131,7 +131,7 @@ https://github.com/wemos
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
   #include <ArduinoOTA.h>
-  #include <NTPClient.h>
+  #include <NTPClient.h>          // EasyNTPClient by Harsha Alva - its in the Library Manager.
   #include <WiFiUdp.h>
 #endif
 
