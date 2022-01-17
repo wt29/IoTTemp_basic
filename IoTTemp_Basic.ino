@@ -140,7 +140,7 @@ https://github.com/wemos
                               // Pete: so we don't need a push after burning a new cfg - in the "data.h" just shove "#include "hackdesk.h" (or whatever)
                               // This means we dont keep uploading API key+password to GitHub. (data.h should be ignored in repository)
 #ifndef SENSORCOUNT
- #define SENSORCOUNT     10   // That will assume more than just 2 sensors.  Less sensors = bigger font size on TFT display
+ #define SENSORCOUNT     2   // That will assume more than just 2 sensors.  Less sensors = bigger font size on TFT display
 #endif
 
 #ifndef HEADLESS                 // no screen
