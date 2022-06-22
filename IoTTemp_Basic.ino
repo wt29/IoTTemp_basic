@@ -94,7 +94,7 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 
 #define IOTAWATT        // Just for fun you can connect to an IotaWatt and show a current feed value
-#define IW_SERVERPATH "http://<youIotaWattIP>/query?select=[time.local.unix,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
+#define IW_SERVERPATH   "http://<youIotaWattIP>/query?select=[time.local.unix,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
 
 // --end of data.h
 
@@ -108,7 +108,8 @@ https://github.com/wemos
 
 */
 
-#define VERSION 1.37            // 1.37 Internet time, uptime and Max/Min temps during run, remote reboot (just because I can) 
+#define VERSION 1.40            // 1.40 IotaWatt integration - Interesting for http GET
+                                // 1.37 Internet time, uptime and Max/Min temps during run, remote reboot (just because I can) 
                                 // 1.35 Very minor - cleanup comments and some old logic.
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
                                 // 1.33 Got rid of unnecessary stuff on the display. Added something cute to the webserver.
@@ -470,7 +471,13 @@ if ( startEpochTime < 500000 ) {
   {
     tft.print("W ");
   }
-  tft.setTextColor(ST7735_GREEN);
+  if (IW_value < 0) {
+   tft.setTextColor(ST7735_GREEN);
+  }
+  else
+  {
+   tft.setTextColor(ST7735_RED);
+  }
   tft.println( IW_value );
 #endif
   #ifdef BMP
