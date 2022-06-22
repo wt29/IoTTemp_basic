@@ -92,6 +92,10 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
                         // Non Scientific but useful enough.  Plan to incorporate wind speed/rainfall in future.
 
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
+
+#define IOTAWATT        // Just for fun you can connect to an IotaWatt and show a current feed value
+#define IW_SERVERPATH "http://<youIotaWattIP>/query?select=[time.local.unix,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
+
 // --end of data.h
 
 -------------------------------------
@@ -133,6 +137,7 @@ https://github.com/wemos
   #include <ArduinoOTA.h>
   #include <NTPClient.h>          // EasyNTPClient by Harsha Alva - its in the Library Manager.
   #include <WiFiUdp.h>
+  #include <ESP8266HTTPClient.h>
 #endif
 
 // Needed to move this here as the IPAddress types aren't declared until the WiFi libs are loaded
@@ -255,6 +260,12 @@ int connectMillis = millis();     // this gets reset after every successful data
 int poll = 60000;           // Poll the sensor every 60 seconds (or so)
 int lastRun = millis() - (poll + 1);
 
+#ifdef IOTAWATT
+ String IWApi;
+ String IW_payload;
+ int IW_value;
+#endif
+
 void setup()
 {
   Serial.begin(115200); //baud rate
@@ -336,7 +347,6 @@ if ( startEpochTime < 500000 ) {
  else
  {
   
-
 #ifndef HASDHT12
   TempC = sht30.cTemp;
   TempF = sht30.fTemp;
@@ -450,7 +460,19 @@ if ( startEpochTime < 500000 ) {
   }
   tft.setTextColor(ST7735_GREEN);
   tft.println(Humidity);
-
+  
+#ifdef IOTAWATT
+  tft.setTextColor(ST7735_WHITE);
+  if ((numberOfSensors < 4) && !showIP ) {
+   tft.print("W ");
+  }   
+  else
+  {
+    tft.print("W ");
+  }
+  tft.setTextColor(ST7735_GREEN);
+  tft.println( IW_value );
+#endif
   #ifdef BMP
     tft.setTextColor(ST7735_WHITE);
     if ((SENSORCOUNT < 4) && !showIP ) {
@@ -507,6 +529,33 @@ if ( startEpochTime < 500000 ) {
   }
   else
   {
+ #ifdef IOTAWATT
+
+      HTTPClient http;
+      String serverPath = IW_SERVERPATH; 
+      http.begin(client,serverPath);
+      
+      // Send HTTP GET request
+      int httpResponseCode = http.GET();
+      
+      if (httpResponseCode>0) {
+        Serial.print("IotaWatt HTTP Response code: ");
+        Serial.println(httpResponseCode);
+        IW_payload = http.getString();
+        IW_value = IW_payload.substring(IW_payload.indexOf(',')+ 1).toInt();
+        
+        Serial.println(IW_value);
+      }
+      else {
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
+      }
+      // Free resources
+      http.end();
+
+    #endif
+
+
    #ifndef HEADLESS
     if (showIP) {
        tft.setTextColor(ST7735_WHITE);
@@ -657,6 +706,9 @@ void handleRoot() {
          // response += "<br>";
          response += "<tr><td>Device started </td><td><b>" + fullDate( startEpochTime ) + "</b></td></tr>";
          response += "<tr><td>Current time </td><td><b>" + fullDate( timeClient.getEpochTime()) + "</b></td></tr>";
+  #ifdef IOTAWATT
+         response += "<tr><td>IotaWatt Value </td><td><b>" + IW_payload + "</b></td></tr>";  
+  #endif              
  
          int runSecs = timeClient.getEpochTime() - startEpochTime;
          int upDays = abs( runSecs / 86400 );
