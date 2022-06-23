@@ -94,7 +94,7 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 
 #define IOTAWATT        // Just for fun you can connect to an IotaWatt and show a current feed value
-#define IW_SERVERPATH   "http://<youIotaWattIP>/query?select=[time.local.unix,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
+#define IW_SERVERPATH   "http://<youIotaWattIP>/query?select=[time.local.iso,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
 
 // --end of data.h
 
@@ -416,6 +416,20 @@ if ( startEpochTime < 500000 ) {
   tft.fillScreen(ST7735_BLACK);
   tft.setCursor(0, 0);
   tft.setTextSize(2);
+  if (showIP) {
+    tft.println(" IoT Temp");          // We know it's an IoT Temp !
+  }
+  tft.setTextColor(ST7735_WHITE);
+  if (numberOfSensors < 4 && !showIP) {
+    tft.println("");  //PB Needed an extra line on the screen
+    tft.setTextSize(3);
+    tft.print("T " );
+  }
+  else
+  {  
+  tft.print("Tmp " );
+  }
+// Set the color of the temp - just because we can
   if (TempC < 10 ) {
     tft.setTextColor(ST7735_BLUE);   // Its chilly
   }
@@ -432,18 +446,7 @@ if ( startEpochTime < 500000 ) {
     tft.setTextColor(ST7735_RED);      // Hot
   }
   
-  tft.println(" IoT Temp");
-  tft.setTextColor(ST7735_WHITE);
-  if (numberOfSensors < 4 && !showIP) {
-    tft.println("");  //PB Needed an extra line on the screen
-    tft.setTextSize(3);
-    tft.print("T " );
-  }
-  else
-  {  
-  tft.print("Tmp " );
-  }
-  tft.setTextColor(ST7735_GREEN);
+//  tft.setTextColor(ST7735_GREEN);
 
   #ifdef CELSIUS
     tft.println(TempC);
@@ -459,7 +462,15 @@ if ( startEpochTime < 500000 ) {
   {
     tft.print("R/H ");
   }
-  tft.setTextColor(ST7735_GREEN);
+  if (Humidity > 80) {
+    tft.setTextColor(ST7735_RED);     // Humid!
+  }
+  else if (Humidity > 50) {
+    tft.setTextColor(ST7735_GREEN);   // Still high but bearable
+  }
+  else {
+     tft.setTextColor(ST7735_BLUE);    // Nice     
+  }
   tft.println(Humidity);
   
 #ifdef IOTAWATT
@@ -471,14 +482,21 @@ if ( startEpochTime < 500000 ) {
   {
     tft.print("W ");
   }
-  if (IW_value < 0) {
-   tft.setTextColor(ST7735_GREEN);
+  if (IW_value < 0 ) {
+    tft.setTextColor(ST7735_GREEN);   // Power to the grid
   }
-  else
-  {
-   tft.setTextColor(ST7735_RED);
+  else if (IW_value < 500 ) {
+    tft.setTextColor(ST7735_YELLOW);   // Low usage
   }
+  else if (IW_value < 2000 ) {
+    tft.setTextColor(ST7735_ORANGE);   // Probably not bad
+  }
+    else {
+    tft.setTextColor(ST7735_RED);      // Sucking down the juice
+  }
+  
   tft.println( IW_value );
+
 #endif
   #ifdef BMP
     tft.setTextColor(ST7735_WHITE);
