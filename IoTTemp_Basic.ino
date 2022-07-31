@@ -94,7 +94,8 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
 //#define BRFACTOR 1;   // Bushfire Rating Factor (Multiplier).  Default is 44 (for granularity/graphing purposes/100).  Define (uncomment) your own value.
 
 #define IOTAWATT        // Just for fun you can connect to an IotaWatt and show a current feed value
-#define IW_SERVERPATH   "http://<youIotaWattIP>/query?select=[time.local.iso,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
+#define IW_VALUE   "http://<youIotaWattIP>/query?select=[time.local.iso,<Your Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
+#define IW_SOLAR   "http://<youIotaWattIP>/query?select=[time.local.iso,<Your Solar Feed Name>.watts]&begin=m-1m&end=m&group=m&format=csv"
 
 // --end of data.h
 
@@ -265,6 +266,9 @@ int lastRun = millis() - (poll + 1);
  String IWApi;
  String IW_payload;
  int IW_value;
+ #ifdef IW_SOLAR
+ int IW_solar;
+ #endif
 #endif
 
 void setup()
@@ -496,6 +500,12 @@ if ( startEpochTime < 500000 ) {
   }
   
   tft.println( IW_value );
+ #ifdef IW_SOLAR
+  tft.setTextColor(ST7735_WHITE);
+  tft.print("S ");
+  tft.setTextColor(ST7735_GREEN);
+  tft.println( IW_solar );
+ #endif 
 
 #endif
   #ifdef BMP
@@ -557,7 +567,7 @@ if ( startEpochTime < 500000 ) {
  #ifdef IOTAWATT
 
       HTTPClient http;
-      String serverPath = IW_SERVERPATH; 
+      String serverPath = IW_VALUE; 
       http.begin(client,serverPath);
       
       // Send HTTP GET request
@@ -574,10 +584,33 @@ if ( startEpochTime < 500000 ) {
       else {
         Serial.print("Error code: ");
         Serial.println(httpResponseCode);
+      // Free resources
+      http.end();
+      }
+#ifdef IW_SOLAR
+      serverPath = IW_SOLAR; 
+      http.begin(client,serverPath);
+      
+      // Send HTTP GET request
+      httpResponseCode = http.GET();
+      
+      if (httpResponseCode>0) {
+        Serial.print("IotaWatt HTTP Response code: ");
+        Serial.println(httpResponseCode);
+        IW_payload = http.getString();
+        IW_solar = IW_payload.substring(IW_payload.indexOf(',')+ 1).toInt();
+        
+        Serial.println(IW_solar);
+      }
+      else {
+        Serial.print("Error code: ");
+        Serial.println(httpResponseCode);
       }
       // Free resources
       http.end();
 
+#endif
+ 
     #endif
 
 
