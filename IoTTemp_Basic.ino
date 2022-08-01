@@ -109,7 +109,7 @@ https://github.com/wemos
 
 */
 
-#define VERSION 1.40            // 1.40 IotaWatt integration - Interesting for http GET
+#define VERSION 1.44            // 1.40 IotaWatt integration - Interesting for http GET
                                 // 1.37 Internet time, uptime and Max/Min temps during run, remote reboot (just because I can) 
                                 // 1.35 Very minor - cleanup comments and some old logic.
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
@@ -124,12 +124,18 @@ https://github.com/wemos
                                 // 1.25 WebClient
                                 // 1.24 Pressure and headless operation 
                                 // 1.23 Bushfire danger feeds - now defaults to 44
-                                // edit bushFireRatingFactor to taste
+                                // 1.25 edit bushFireRatingFactor to taste
+                                // 1.42 Iotawatt integration Dunno what happened to 1.3x
+                                // 1.43 Iotawatt solar output and hostname
+                                // 1.44 EEPROM Access for Max and Min stuff beyond reboots
+                                
 
 #warning Setup your data.h.  Refer to the provided template at top of this file.
 
-#define WIFI
+#include <EEPROM.h>          // Going to save some Max/Min stuff
+#define EEPROM_SIZE 32        // 4 bytes each for TempMax, TMaxEpoch, TempMin, TMinEpoch, HumidityMax, HMaxEpoch, HumidityMin, HMinEpoch
 
+#define WIFI
 //Node and Network Setup
 #ifdef WIFI
   #include <ESP8266WiFi.h>
@@ -233,17 +239,25 @@ boolean showIP = true;    // Only show the WiFi/IP details on first run through 
 float TempC;
 float TempF;
 float Humidity;
-float maxTemp = -100.0 ;  // Force it to start
-float minTemp = 100.0;  // force it to start
+
+float maxTemp;  // Force it to start
+float minTemp;  // force it to start
+float maxHumidity;  // Force it to start
+float minHumidity;  // force it to start
 
 unsigned long maxTempEpoch;
 unsigned long minTempEpoch;
+unsigned long maxHumidityEpoch;
+unsigned long minHumidityEpoch;
 
 #ifdef WIFI
   WiFiClient client;              // Instance of WiFi Client
+
   ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
   void handleRoot();              // function prototypes for HTTP handlers
   void handleNotFound();
+  void readEEPROM();
+  void restEEPROM();
 
   const long utcOffsetInSeconds = TZOFFSET;       // Sydney is 10 hours ahead
   const char* timeServer = TIMESERVER;
@@ -271,11 +285,22 @@ int lastRun = millis() - (poll + 1);
  #endif
 #endif
 
+//-----------------
 void setup()
 {
   Serial.begin(115200); //baud rate
   Serial.println();
-  
+
+  EEPROM.begin(32);                 // this number in "begin()" is ESP8266. EEPROM is emulated so you need buffer to emulate.
+  EEPROM.get(0,maxTemp);            // Should read 4 bytes for each of these thangs
+  EEPROM.get(4,maxTempEpoch);            
+  EEPROM.get(8,minTemp);            
+  EEPROM.get(12,minTempEpoch);            
+  EEPROM.get(16,maxHumidity);         
+  EEPROM.get(20,maxHumidityEpoch);         
+  EEPROM.get(24,minHumidity);        
+  EEPROM.get(28,minHumidityEpoch);       
+
 #ifdef AIRQUALITY
   sgp30.begin(); // startup/calibrate the air quality shield
   sgp30.IAQinit();
@@ -303,8 +328,10 @@ if (MDNS.begin( nodeName )) {              // Start the mDNS responder for <node
   }
 
 server.on("/", handleRoot);               // Call the 'handleRoot' function when a client requests URI "/"
-server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
 server.on("/reboot",rebootDevice);        // Kick over remotely
+server.on("/reseteeprom",resetEEPROM);    // Reset the EEPROM values
+server.on("/readeeprom",readEEPROM);      // Read and display the EEPROM values
+server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
 
 server.begin();                           // Actually start the server
 Serial.println("HTTP server started");
@@ -315,6 +342,8 @@ ArduinoOTA.setHostname( nodeName );
 #endif
 }       // Setup
 
+
+//------------------------
 void loop() {
 
 #ifdef WIFI 
@@ -365,11 +394,34 @@ if ( startEpochTime < 500000 ) {
   if (TempC > maxTemp ) {
     maxTemp = TempC;
     maxTempEpoch = timeClient.getEpochTime() ;
+    EEPROM.write( 0, maxTemp );
+    EEPROM.write( 4, maxTempEpoch );
+    EEPROM.commit();
    }
 
-   if (TempC < minTemp ) {
+   if (TempC < minTemp || minTempEpoch < startEpochTime ) {   // fixes minimum issues the first time EEPROM is used
      minTemp = TempC;
      minTempEpoch = timeClient.getEpochTime() ;
+     EEPROM.write( 8, minTemp );
+     EEPROM.write( 12, minTempEpoch );
+     EEPROM.commit();
+
+   }
+  if (Humidity > maxHumidity ) {
+    maxHumidity = Humidity;
+    maxHumidityEpoch = timeClient.getEpochTime() ;
+    EEPROM.write( 16, maxHumidity );
+    EEPROM.write( 20, maxHumidityEpoch );
+    EEPROM.commit();
+   }
+
+   if (Humidity < minHumidity || minHumidityEpoch < startEpochTime) {   // fixes minimum issues the first time EEPROM is used
+    minHumidity = Humidity;
+    minHumidityEpoch = timeClient.getEpochTime() ;
+    EEPROM.write( 24, minHumidity );
+    EEPROM.write( 28, minHumidityEpoch );
+    EEPROM.commit();
+
    }
   }
   Serial.println();
@@ -713,8 +765,9 @@ void connectWiFi() {
 #ifdef STATIC_IP  
  WiFi.config( staticIP, gateway, subnet, dns1 );
 #endif
+  String newHostName = NODENAME;
+  WiFi.hostname( newHostName.c_str() );     // This will show up in your DHCP server
   WiFi.begin(ssid, password);
-  WiFi.hostname( nodeName );     // This will show up in your DHCP server
 
   String strDebug = ssid ;
   strDebug += "  ";
@@ -744,8 +797,10 @@ void handleRoot() {
          response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
          response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
          response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
-         response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
-         response += "<tr><td>Minimum temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + " " + String( maxTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimum temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + " " + String( minTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Maximum humidity recorded </td><td><b>" + String(maxHumidity) + "</b> on <b>" + fullDate( maxHumidityEpoch ) + " " + String( maxHumidityEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimum humidity recorded </td><td><b>" + String(minHumidity) + "</b> on <b>" + fullDate( minHumidityEpoch ) + " " + String( minHumidityEpoch ) + "</b></td></tr>";
 
   #ifdef BMP
          response += "<tr><td>Air Pressure local </td><td><b>" + String(pressure) + " millibars</b></td></tr>";
@@ -754,18 +809,18 @@ void handleRoot() {
   #ifdef BFDLOGGING
          response += "<tr><td>Bushfire Rating </td><td><b>"+ String((1/Humidity)*TempC*brFactor) + " </b></td></tr>";
   #endif
-
   #ifdef AIRQUALITY
          // response += "<br>";
          response += "<tr><td>Air Quality eCO2 </td><td><b>"+ String(AQ_eCO2) + " ppm</b></td></tr>";
          response += "<tr><td>Air Quality TVOC </td><td><b>"+ String(AQ_TVOC) + " ppb</b></td></tr>";
   #endif
-
-         // response += "<br>";
          response += "<tr><td>Device started </td><td><b>" + fullDate( startEpochTime ) + "</b></td></tr>";
          response += "<tr><td>Current time </td><td><b>" + fullDate( timeClient.getEpochTime()) + "</b></td></tr>";
   #ifdef IOTAWATT
-         response += "<tr><td>IotaWatt Value </td><td><b>" + IW_payload + "</b></td></tr>";  
+         response += "<tr><td>IotaWatt Value </td><td><b>" + String( IW_value ) + "</b></td></tr>";  
+    #ifdef IW_SOLAR       
+         response += "<tr><td>IotaWatt Solar </td><td><b>" + String( IW_solar ) + "</b></td></tr>";  
+    #endif
   #endif              
  
          int runSecs = timeClient.getEpochTime() - startEpochTime;
@@ -795,6 +850,38 @@ void rebootDevice(){
   delay( 5000 );
   ESP.restart();
 }
+
+void resetEEPROM(){    // Sometimes it just doesn't seem right....
+  server.send(200, "text/html", "<h1>Resetting EEPROM</h1>"); // Warn em
+  EEPROM.write( 0, 0.00f );
+  EEPROM.write( 4, 0L );
+  EEPROM.write( 8, 0.00f );
+  EEPROM.write( 12, 0L );
+  EEPROM.write( 16, 0.00f );
+  EEPROM.write( 20, 0L );
+  EEPROM.write( 24, 0.00f );
+  EEPROM.write( 28, 0L );
+
+}
+
+void readEEPROM(){    // Sometimes it just doesn't seem right....
+  EEPROM.get( 0, maxTemp );
+  EEPROM.get( 4, maxTempEpoch );
+  EEPROM.get( 8, minTemp );
+  EEPROM.get( 12, minTempEpoch );
+  EEPROM.get( 16, maxHumidity );
+  EEPROM.get( 20, maxHumidityEpoch );
+  EEPROM.get( 24, minHumidity );
+  EEPROM.get( 28, minHumidityEpoch );
+  server.send(200, "text/html", 
+      String(maxTemp) + " " + String(maxTempEpoch) + " " + 
+      String(minTemp)+ " " + String(minTempEpoch)+ " " + 
+      String(maxHumidity)+ " " + String(maxHumidityEpoch)+ " " + 
+      String(minHumidity)+ " " + String(minHumidityEpoch)  ); 
+
+}
+
+
 
 String getInternetTime() {
   timeClient.update();
@@ -912,5 +999,5 @@ unsigned int ntp_year, days_since_epoch, day_of_year;
   printf("Day of year = %d\n", day_of_year);
   printf("Is Year Leap? %d\n",leap_year_ind);
 */
-  return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second );
+  return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_year + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second  );
 }
