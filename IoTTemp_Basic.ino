@@ -293,12 +293,16 @@ void setup()
 
   EEPROM.begin(32);                 // this number in "begin()" is ESP8266. EEPROM is emulated so you need buffer to emulate.
   EEPROM.get(0,maxTemp);            // Should read 4 bytes for each of these thangs
+  if ( isnan( maxTemp ) ) { maxTemp = 0; }  // Having issues during devel with "nan" (not a number) being written to EEPROM
   EEPROM.get(4,maxTempEpoch);            
-  EEPROM.get(8,minTemp);            
+  EEPROM.get(8,minTemp);       
+  if ( isnan( minTemp ) ) { minTemp = 100; }     
   EEPROM.get(12,minTempEpoch);            
   EEPROM.get(16,maxHumidity);         
+  if ( isnan( maxHumidity ) ) { maxHumidity = 0; }
   EEPROM.get(20,maxHumidityEpoch);         
   EEPROM.get(24,minHumidity);        
+  if ( isnan( minHumidity ) ) { minHumidity = 100; }
   EEPROM.get(28,minHumidityEpoch);       
 
 #ifdef AIRQUALITY
@@ -331,6 +335,7 @@ server.on("/", handleRoot);               // Call the 'handleRoot' function when
 server.on("/reboot",rebootDevice);        // Kick over remotely
 server.on("/reseteeprom",resetEEPROM);    // Reset the EEPROM values
 server.on("/readeeprom",readEEPROM);      // Read and display the EEPROM values
+server.on("/writeeeprom",writeEEPROM);      // Read and display the EEPROM values
 server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
 
 server.begin();                           // Actually start the server
@@ -394,32 +399,32 @@ if ( startEpochTime < 500000 ) {
   if (TempC > maxTemp ) {
     maxTemp = TempC;
     maxTempEpoch = timeClient.getEpochTime() ;
-    EEPROM.write( 0, maxTemp );
-    EEPROM.write( 4, maxTempEpoch );
+    EEPROM.put( 0, maxTemp );
+    EEPROM.put( 4, maxTempEpoch );
     EEPROM.commit();
    }
 
    if (TempC < minTemp || minTempEpoch < startEpochTime ) {   // fixes minimum issues the first time EEPROM is used
      minTemp = TempC;
      minTempEpoch = timeClient.getEpochTime() ;
-     EEPROM.write( 8, minTemp );
-     EEPROM.write( 12, minTempEpoch );
+     EEPROM.put( 8, minTemp );
+     EEPROM.put( 12, minTempEpoch );
      EEPROM.commit();
 
    }
   if (Humidity > maxHumidity ) {
     maxHumidity = Humidity;
     maxHumidityEpoch = timeClient.getEpochTime() ;
-    EEPROM.write( 16, maxHumidity );
-    EEPROM.write( 20, maxHumidityEpoch );
+    EEPROM.put( 16, maxHumidity );
+    EEPROM.put( 20, maxHumidityEpoch );
     EEPROM.commit();
    }
 
    if (Humidity < minHumidity || minHumidityEpoch < startEpochTime) {   // fixes minimum issues the first time EEPROM is used
     minHumidity = Humidity;
     minHumidityEpoch = timeClient.getEpochTime() ;
-    EEPROM.write( 24, minHumidity );
-    EEPROM.write( 28, minHumidityEpoch );
+    EEPROM.put( 24, minHumidity );
+    EEPROM.put( 28, minHumidityEpoch );
     EEPROM.commit();
 
    }
@@ -797,10 +802,10 @@ void handleRoot() {
          response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
          response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
          response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
-         response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + " " + String( maxTempEpoch ) + "</b></td></tr>";
-         response += "<tr><td>Minimum temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + " " + String( minTempEpoch ) + "</b></td></tr>";
-         response += "<tr><td>Maximum humidity recorded </td><td><b>" + String(maxHumidity) + "</b> on <b>" + fullDate( maxHumidityEpoch ) + " " + String( maxHumidityEpoch ) + "</b></td></tr>";
-         response += "<tr><td>Minimum humidity recorded </td><td><b>" + String(minHumidity) + "</b> on <b>" + fullDate( minHumidityEpoch ) + " " + String( minHumidityEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimum temperature recorded </td><td><b>" + String(minTemp) + "</b> on <b>" + fullDate( minTempEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Maximum humidity recorded </td><td><b>" + String(maxHumidity) + "</b> on <b>" + fullDate( maxHumidityEpoch ) + "</b></td></tr>";
+         response += "<tr><td>Minimum humidity recorded </td><td><b>" + String(minHumidity) + "</b> on <b>" + fullDate( minHumidityEpoch ) + "</b></td></tr>";
 
   #ifdef BMP
          response += "<tr><td>Air Pressure local </td><td><b>" + String(pressure) + " millibars</b></td></tr>";
@@ -853,26 +858,46 @@ void rebootDevice(){
 
 void resetEEPROM(){    // Sometimes it just doesn't seem right....
   server.send(200, "text/html", "<h1>Resetting EEPROM</h1>"); // Warn em
-  EEPROM.write( 0, 0.00f );
-  EEPROM.write( 4, 0L );
-  EEPROM.write( 8, 0.00f );
-  EEPROM.write( 12, 0L );
-  EEPROM.write( 16, 0.00f );
-  EEPROM.write( 20, 0L );
-  EEPROM.write( 24, 0.00f );
-  EEPROM.write( 28, 0L );
+  EEPROM.put( 0, 0.00f );
+  EEPROM.put( 4, 0L );
+  EEPROM.put( 8, 0.00f );
+  EEPROM.put( 12, 0L );
+  EEPROM.put( 16, 0.00f );
+  EEPROM.put( 20, 0L );
+  EEPROM.put( 24, 0.00f );
+  EEPROM.put( 28, 0L );
 
 }
 
-void readEEPROM(){    // Sometimes it just doesn't seem right....
-  EEPROM.get( 0, maxTemp );
-  EEPROM.get( 4, maxTempEpoch );
-  EEPROM.get( 8, minTemp );
-  EEPROM.get( 12, minTempEpoch );
-  EEPROM.get( 16, maxHumidity );
-  EEPROM.get( 20, maxHumidityEpoch );
-  EEPROM.get( 24, minHumidity );
-  EEPROM.get( 28, minHumidityEpoch );
+void readEEPROM(){    // Whats in the EEPROM
+  float mxT, miT, mxH, miH;
+  long mxTE, miTE, mxHE, miHE;
+  EEPROM.get( 0, mxT );
+  EEPROM.get( 4, mxTE );
+  EEPROM.get( 8, miT );
+  EEPROM.get( 12, miTE );
+  EEPROM.get( 16, mxH );
+  EEPROM.get( 20, mxHE );
+  EEPROM.get( 24, miH );
+  EEPROM.get( 28, miHE );
+  server.send(200, "text/html", 
+      String(mxT) + " " + String(mxTE) + " " + 
+      String(miT)+ " " + String(miTE)+ " " + 
+      String(mxH)+ " " + String(mxHE)+ " " + 
+      String(miH)+ " " + String(miHE)  ); 
+
+}
+
+void writeEEPROM(){    // Flush the values
+  EEPROM.put( 0, maxTemp );
+  EEPROM.put( 4, maxTempEpoch );
+  EEPROM.put( 8, minTemp );
+  EEPROM.put( 12, minTempEpoch );
+  EEPROM.put( 16, maxHumidity );
+  EEPROM.put( 20, maxHumidityEpoch );
+  EEPROM.put( 24, minHumidity );
+  EEPROM.put( 28, minHumidityEpoch );
+  EEPROM.commit();
   server.send(200, "text/html", 
       String(maxTemp) + " " + String(maxTempEpoch) + " " + 
       String(minTemp)+ " " + String(minTempEpoch)+ " " + 
@@ -999,5 +1024,7 @@ unsigned int ntp_year, days_since_epoch, day_of_year;
   printf("Day of year = %d\n", day_of_year);
   printf("Is Year Leap? %d\n",leap_year_ind);
 */
+  String sNTPM = String( "00" + ntp_minute );
+  sNTPM = sNTPM.substring( sNTPM.length() -2, sNTPM.length() );
   return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_year + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second  );
 }
