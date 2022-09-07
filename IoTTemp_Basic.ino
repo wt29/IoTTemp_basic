@@ -404,7 +404,7 @@ if ( startEpochTime < 500000 ) {
     EEPROM.commit();
    }
 
-   if (TempC < minTemp || minTempEpoch < startEpochTime ) {   // fixes minimum issues the first time EEPROM is used
+   if (TempC < minTemp ) {   
      minTemp = TempC;
      minTempEpoch = timeClient.getEpochTime() ;
      EEPROM.put( 8, minTemp );
@@ -420,7 +420,7 @@ if ( startEpochTime < 500000 ) {
     EEPROM.commit();
    }
 
-   if (Humidity < minHumidity || minHumidityEpoch < startEpochTime) {   // fixes minimum issues the first time EEPROM is used
+   if (Humidity < minHumidity ) {   
     minHumidity = Humidity;
     minHumidityEpoch = timeClient.getEpochTime() ;
     EEPROM.put( 24, minHumidity );
