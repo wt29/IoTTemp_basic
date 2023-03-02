@@ -4,6 +4,8 @@ IOT Temp - the little weather station that could.  Read/Display/Log.
 Featuring the LOLIN D1 ESP 8266,  and associated shields as desired.
 https://lolin.aliexpress.com/store/1331105?spm=a2g0o.detail.1000007.1.277c6380JG6A1m
 
+Use the Lolin D1 R1 in the Arduino Boards
+
 You will need a file "data.h" - copy the template below.
 
 If you have lots of these keep the individual configs in myDeviceName.h for easy reference to save remembering config and board versions
@@ -23,8 +25,10 @@ Also accesible via a webserver either on its http://ipaddress or http://nodename
 #define NODENAME "<Your NodeName>";                 // eg "Kitchen"  Required and UNIQUE per site.  Also used to find mdns eg NODENAME.local
 
 #define WIFI                                        // Default is true to enable WiFi
-#define LOCALSSID "<Your WiFi SSID>";               // eg "AwesomeWifi"  Required Can't use plain SSID as the WiFi library now defines it.
-#define PASSWORD "<Your WiFI Password>";            // eg "HorseStapleSomething"  Required
+
+#define APARRAY {"AP1","AP2","AP3"}                 // Array of APs
+#define PASSARRAY {"Pass1","Pass2","Pass3"}         // Array of passwords
+#define APCOUNT 3                                   // Number of APs to try
 
 #define HOST "<Your emoncms host fqdn>";            // eg  "emoncms.org" Required for logging. Note:just the host not the protocol
 #define MYAPIKEY "<Your emoncms API write key>";    // Required Get it from your MyAccount details in your emoncms instance
@@ -109,7 +113,10 @@ https://github.com/wemos
 
 */
 
-#define VERSION 1.44            // 1.40 IotaWatt integration - Interesting for http GET
+#define VERSION 1.46            // 1.46 Uses the multiAP array method of connecting to WiFI
+                                // 1.45 Minor - should now show the correct hostname in DHCP server
+                                // 1.44 EEProm now maintains max/min for temperature and humidity
+                                // 1.40 IotaWatt integration - Interesting for http GET
                                 // 1.37 Internet time, uptime and Max/Min temps during run, remote reboot (just because I can) 
                                 // 1.35 Very minor - cleanup comments and some old logic.
                                 // 1.34 Got bored one evening. Changed the text size for the basic temp and RH to LARGE. See new SENSORCOUNT define
@@ -133,12 +140,13 @@ https://github.com/wemos
 #warning Setup your data.h.  Refer to the provided template at top of this file.
 
 #include <EEPROM.h>          // Going to save some Max/Min stuff
-#define EEPROM_SIZE 32        // 4 bytes each for TempMax, TMaxEpoch, TempMin, TMinEpoch, HumidityMax, HMaxEpoch, HumidityMin, HMinEpoch
+#define EEPROM_SIZE 32       // 4 bytes each for TempMax, TMaxEpoch, TempMin, TMinEpoch, HumidityMax, HMaxEpoch, HumidityMin, HMinEpoch
 
-#define WIFI
+#define WIFI                 // this will just run as a display device if this is disabled. Note: no historic max/mins as it can't find a timeserver without WiFi
 //Node and Network Setup
 #ifdef WIFI
   #include <ESP8266WiFi.h>
+  #include <ESP8266WiFiMulti.h>   // Include the Wi-Fi-Multi library
   #include <WiFiClient.h>
   #include <ESP8266mDNS.h>
   #include <ESP8266WebServer.h>   // Include the WebServer library
@@ -162,8 +170,10 @@ https://github.com/wemos
 #endif
 
 const char* nodeName = NODENAME;
-const char* ssid = LOCALSSID;
-const char* password = PASSWORD;
+// const char* ssid = LOCALSSID;
+// const char* password = PASSWORD;
+const char* passwords[] = PASSARRAY;
+const char* accessPoints[] = APARRAY;
 const char* host = HOST;
 const char* APIKEY = MYAPIKEY;
 #ifdef SENSORCOUNT
@@ -218,10 +228,6 @@ boolean showIP = true;    // Only show the WiFi/IP details on first run through 
   DHT12 dht12;                  
 #endif
 
-//water logging placeholder
-//wind speed logging placeholder
-//wind angle logging placeholder
-
 //Do we want to log BushFire Danger Stuff? 
 #ifdef BFDLOGGING     
   //nothing needed for now
@@ -252,7 +258,7 @@ unsigned long minHumidityEpoch;
 
 #ifdef WIFI
   WiFiClient client;              // Instance of WiFi Client
-
+  ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
   ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
   void handleRoot();              // function prototypes for HTTP handlers
   void handleNotFound();
@@ -608,6 +614,10 @@ if ( startEpochTime < 500000 ) {
 
 #ifdef WIFI
   if (WiFi.status() != WL_CONNECTED){
+
+  for (int i = 0; i <= APCOUNT; i++) {
+    wifiMulti.addAP( accessPoints[i], passwords[i] );     // Add all the APs and passwords from the arrays
+  }
     connectWiFi();
   }
   if (WiFi.status() != WL_CONNECTED ) {
@@ -676,7 +686,7 @@ if ( startEpochTime < 500000 ) {
        tft.setTextColor(ST7735_WHITE);
        tft.print(" SSID:" );
        tft.setTextColor(ST7735_GREEN);
-       tft.println( ssid );
+       tft.println( WiFi.SSID() );
        tft.setTextColor(ST7735_WHITE);
        tft.print("   IP:" );
        tft.setTextColor(ST7735_GREEN);
@@ -767,11 +777,37 @@ void tftPrint ( char* value, bool newLine, int color ) {
 
 void connectWiFi() {
 
+#ifdef STATIC_IP
+  WiFi.config( staticIP, gateway, subnet, dns1 );
+#endif
+  WiFi.hostname( nodeName );     // This will show up in your DHCP server
+  while (wifiMulti.run() != WL_CONNECTED) {
+
+    startWiFi = millis() ;        // When we started waiting
+
+    while ((WiFi.status() != WL_CONNECTED) && ( (millis() - startWiFi) < waitForWiFi ))
+    {
+      millisDelay(500);
+      Serial.print(".");
+    }
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("");
+    Serial.print("IP Address: ");
+    Serial.println( WiFi.localIP());
+    Serial.printf("Connection status: %d\n", WiFi.status());
+  }
+
+}
+/*
+void connectWiFi() {
+
 #ifdef STATIC_IP  
  WiFi.config( staticIP, gateway, subnet, dns1 );
 #endif
   String newHostName = NODENAME;
-  WiFi.hostname( newHostName.c_str() );     // This will show up in your DHCP server
+  WiFi.setHostname( newHostName.c_str() );     // This will show up in your DHCP server
   WiFi.begin(ssid, password);
 
   String strDebug = ssid ;
@@ -794,12 +830,12 @@ void connectWiFi() {
   Serial.printf("Connection status: %d\n", WiFi.status());
 
 }
-
+*/
 #ifdef WIFI
 void handleRoot() {
   String url = "<a href=http://" + String(host) + ">"+host+"</a></b><br>";
   String response = "<h2>Welcome to IoT Temp on node " + String(nodeName) + "</h2>";
-         response += "<p></p><table style=\"\width:600\"\>";   // Put this in a table
+         response += "<p></p><table style=\"width:600\">";
          response += "<tr><td>Temperature </td><td><b>" + String(TempC) + "C</b></td></tr>";
          response += "<tr><td>Humidity </td><td><b>" + String(Humidity) + " %RH</b></td></tr>";
          response += "<tr><td>Maximum temperature recorded </td><td><b>" + String(maxTemp) + "</b> on <b>" + fullDate( maxTempEpoch ) + "</b></td></tr>";
@@ -1027,4 +1063,14 @@ unsigned int ntp_year, days_since_epoch, day_of_year;
   String sNTPM = String( "00" + ntp_minute );
   sNTPM = sNTPM.substring( sNTPM.length() -2, sNTPM.length() );
   return String( dow + " " + ntp_date + " " + sMonth + " " + ntp_year + " " + ntp_hour + ":" + ntp_minute + ":" + ntp_second  );
+}
+
+// Wait around for a bit
+void millisDelay ( int mDelay )
+{
+  int now = millis();
+  do {
+    // Do nothing
+  } while ( millis() < now + mDelay);
+
 }
