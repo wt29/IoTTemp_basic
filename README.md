@@ -1,9 +1,10 @@
 # IotaTemp_basic
-Wemos D1 mini and DHT12 Sensor logs to the internet.
+Wemos D1 mini and SHT30 Sensor logs to the internet. The older DHT12 is also supported if you have one handy.
 
-Uses a Wemos/Lolin D1 mini hooked up to the Wemos DHT v3.0.0 shield that logs temp and humidity up to an emoncms server.
+Uses a Wemos/Lolin D1 mini hooked up to the Wemos DHT v3.0.0 shield that logs temp and humidity up to an EmonCMS server.
 
-You can create your own emoncms server, the code is open source or create an account at emoncms.org.
+You can create your own EmonCMS server, the code is open source or create an account at emoncms.org. 
+If you decide to use AWS, pro tip: Reserved Instances are your friend.
 
 Create a local data.h and substitute your values as shown in the ino file.
 
